@@ -515,6 +515,23 @@
     texDay = uploadTex(gl, drawWorldTexture());
     texNight = uploadTex(gl, drawNightTexture());
 
+    // Upgrade to real NASA imagery (public domain) when it loads — the same
+    // source imagery the original channel's globe used. Until then the
+    // vector-drawn textures above keep the globe alive.
+    const retexture = (tex, img)=>{
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+      gl.generateMipmap(gl.TEXTURE_2D);
+      G.photoReady = (G.photoReady || 0) + 1;
+    };
+    [["assets/earth_day.jpg", ()=>texDay],
+     ["assets/earth_night.jpg", ()=>texNight]].forEach(([src, get])=>{
+      const img = new Image();
+      img.onload = ()=>retexture(get(), img);
+      img.onerror = ()=>{ G.photoErrors = (G.photoErrors||[]).concat(src); };
+      img.src = src;
+    });
+
     // stars: catalog bright + procedural faint
     const stars = (window.FC_STARS||[]).map(s=>{
       const [ra, dec, mag] = s;
