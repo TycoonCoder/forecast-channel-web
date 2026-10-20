@@ -230,34 +230,53 @@
     if(e.key==="Escape") $("panel-close").click();
   });
 
-  /* ---------- boot ---------- */
+  /* ---------- boot: WebGL → Canvas-2D → city list ---------- */
   function boot(){
     const canvas = $("scene");
+    const canvas2 = $("scene2d");
     try{
       if(location.search.indexOf("fail-globe") >= 0)
         throw new Error("forced failure (test hook)");
-      window.FC_GLOBE.init(canvas);
+      if(location.search.indexOf("use-2d") < 0)
+        window.FC_GLOBE.init(canvas);
+      else
+        throw new Error("2D forced (test hook)");
       hookGlobe();
       updateMarkers();
     }catch(err){
-      window.FC_ERRORS.push("globe: "+err);
-      // Graceful degradation: no globe, but forecasts still work.
-      $("markers").style.display = "none";
-      const el = $("nogl");
-      el.innerHTML =
-        "<p><strong>The 3D globe couldn't start in this browser.</strong></p>" +
-        "<p class='why'>Reason: " + (err && err.message ? err.message : err) + "</p>" +
-        "<p>Pick a city for its forecast anyway:</p>";
-      const sel = document.createElement("select");
-      cities.forEach((c,i)=>{
-        const o = document.createElement("option");
-        o.value = i; o.textContent = c.name + " — " + c.country;
-        sel.appendChild(o);
-      });
-      sel.addEventListener("change", ()=>selectCity(+sel.value, false));
-      el.appendChild(sel);
-      el.style.zIndex = 5;   // below the forecast panel
-      el.hidden = false;
+      window.FC_ERRORS.push("globe3d: " + err);
+      try{
+        // A canvas that already has a WebGL context can't host a 2D one,
+        // so the fallback draws on its own element.
+        if(location.search.indexOf("no-2d") >= 0)
+          throw new Error("2D forced off (test hook)");
+        canvas.hidden = true;
+        canvas2.hidden = false;
+        window.FC_GLOBE2D.init(canvas2);
+        hookGlobe();
+        updateMarkers();
+        toast("3D mode unavailable here — running the 2D globe instead.");
+      }catch(err2){
+        window.FC_ERRORS.push("globe2d: " + err2);
+        // Final tier: no globe at all, forecasts still work.
+        $("markers").style.display = "none";
+        const el = $("nogl");
+        el.innerHTML =
+          "<p><strong>The globe couldn't start in this browser.</strong></p>" +
+          "<p class='why'>3D reason: " + (err && err.message ? err.message : err) + "<br>" +
+          "2D reason: " + (err2 && err2.message ? err2.message : err2) + "</p>" +
+          "<p>Pick a city for its forecast anyway:</p>";
+        const sel = document.createElement("select");
+        cities.forEach((c,i)=>{
+          const o = document.createElement("option");
+          o.value = i; o.textContent = c.name + " — " + c.country;
+          sel.appendChild(o);
+        });
+        sel.addEventListener("change", ()=>selectCity(+sel.value, false));
+        el.appendChild(sel);
+        el.style.zIndex = 5;   // below the forecast panel
+        el.hidden = false;
+      }
     }
   }
   if(document.readyState === "loading")

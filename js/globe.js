@@ -109,7 +109,7 @@
         }
         const ice = /antartica/i.test(name)||/Greenland/i.test(name);
         const l = hash(name)*10-5;
-        x.fillStyle = ice ? "#cfe0ea" : `hsl(${126+l} 34% ${34+l}%)`;
+        x.fillStyle = ice ? "#cfe0ea" : "hsl(" + Math.round(126+l) + ", 34%, " + Math.round(34+l) + "%)";
         x.fill("evenodd");
         x.strokeStyle = ice ? "#9db4c2" : "rgba(16,52,34,0.85)";
         x.lineWidth = ice ? 2 : 1.6; x.stroke();
@@ -195,7 +195,8 @@
       vec3 night = texture2D(uNight, vUv).rgb;
       vec3 lit = day * (0.22 + 0.9 * max(d, 0.0));
       vec3 col = mix(night * 1.15, lit, dayness);
-      col += vec3(0.85, 0.38, 0.14) * exp(-pow(d * 5.5, 2.0)) * 0.16;
+      float tw = d * 5.5;   // terminator width factor (can be negative)
+      col += vec3(0.85, 0.38, 0.14) * exp(-tw * tw) * 0.16;
       vec3 view = normalize(uCam - vW);
       float fres = pow(1.0 - max(dot(view, n), 0.0), 3.0);
       col += vec3(0.25, 0.5, 0.9) * fres * (0.12 + 0.5 * dayness);
