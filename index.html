@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Forecast Channel</title>
+<meta name="description" content="A browser-native recreation of the Wii Forecast Channel: a spinnable day/night globe with live weather for cities worldwide.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%232b6fd6'/%3E%3Cpath d='M14 40c8-2 12-6 18-6s10 4 18 6c-4 8-10 12-18 12s-14-4-18-12z' fill='%237cc0f2'/%3E%3Ccircle cx='24' cy='22' r='9' fill='%23ffe27a'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="scene"></canvas>
+<div id="markers" aria-hidden="false"></div>
+
+<div id="nogl" hidden>
+  <p>This experience needs WebGL, which your browser has disabled or does not support.</p>
+</div>
+
+<header id="topbar">
+  <div id="title-badge">
+    <svg viewBox="0 0 64 64" class="badge-icon"><circle cx="32" cy="32" r="26" fill="#4a90e2"/><path d="M12 38c9-3 13-7 20-7s11 4 20 7c-5 9-11 14-20 14s-15-5-20-14z" fill="#bfe3ff"/><circle cx="25" cy="20" r="8" fill="#ffe27a"/></svg>
+    <span>Forecast Channel</span>
+  </div>
+  <div id="clock">
+    <div id="clock-time">--:--</div>
+    <div id="clock-date">&nbsp;</div>
+  </div>
+</header>
+
+<aside id="panel" class="hidden" aria-live="polite">
+  <div id="panel-head">
+    <div>
+      <div id="city-name">—</div>
+      <div id="city-country"></div>
+    </div>
+    <button id="panel-close" title="Close" aria-label="Close">&#10005;</button>
+  </div>
+  <div id="city-local-time"></div>
+  <div id="current">
+    <div id="temp">–</div>
+    <div id="cond-icon"></div>
+    <div id="cond-text">Loading…</div>
+    <div id="feels"></div>
+  </div>
+  <nav id="tabs">
+    <button data-day="0" class="active">Today</button>
+    <button data-day="1">Tomorrow</button>
+  </nav>
+  <div id="daily-detail"></div>
+  <div id="strip"></div>
+  <div id="details"></div>
+</aside>
+
+<div id="controls">
+  <button id="zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
+  <button id="zoom-out" title="Zoom out" aria-label="Zoom out">&minus;</button>
+</div>
+<div id="corner-controls">
+  <button id="music" title="Toggle music">Music&nbsp;Off</button>
+  <button id="units" title="Switch units">&deg;F</button>
+  <button id="locate" title="Use my location">My&nbsp;City</button>
+</div>
+
+<footer id="hintbar"><span>Drag the globe to spin &middot; Click a city dot for its forecast</span><a id="attrib" href="https://open-meteo.com/" target="_blank" rel="noopener">Weather data: Open-Meteo</a></footer>
+<div id="toast" hidden></div>
+
+<script src="js/geo.js"></script>
+<script src="js/stars.js"></script>
+<script src="js/cities.js"></script>
+<script src="js/weather.js"></script>
+<script src="js/music.js"></script>
+<script src="js/globe.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
