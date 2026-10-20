@@ -1,0 +1,37 @@
+{
+ "stage": "1-3 complete",
+ "binary": "contents/0000000d.app",
+ "code_volume": "1,490 KB PPC text (~381,400 instructions)",
+ "functions_recovered": 9573,
+ "functions_identified": 7,
+ "strings_recovered": 1574,
+ "string_xrefs": 255,
+ "sdk_modules_linked": [
+  "OS",
+  "GX",
+  "AX",
+  "AI",
+  "VI",
+  "SI",
+  "PAD",
+  "WPAD",
+  "KPAD",
+  "EXI",
+  "DVD",
+  "NAND",
+  "SC",
+  "SO",
+  "NWC24",
+  "CNT",
+  "HBM",
+  "NCD",
+  "DSP"
+ ],
+ "next_stages": [
+  "stage 4: full per-function disassembly corpus (asm/)",
+  "stage 5: prototype recovery (stack-frame analysis) + C translation at scale",
+  "stage 6: HLE runtime: GX->WebGL, AX->WebAudio, NAND->IndexedDB, IOS->syscalls",
+  "stage 7: static recomp to WASM (DolRecomp or custom) + runtime glue",
+  "stage 8: WC24 forecast data via RiiConnect24/WiiLink replacement servers"
+ ]
+}

@@ -1,0 +1,37 @@
+{
+ "0x800ea970": {
+  "name": "OSRestoreInterrupts",
+  "sig": "u32 OSRestoreInterrupts(u16 state)",
+  "note": "if state: set MSR[EE]; else clear. Returns previous EE. 922 call sites."
+ },
+ "0x800ea948": {
+  "name": "OSDisableInterrupts",
+  "sig": "u16 OSDisableInterrupts(void)",
+  "note": "clears MSR[EE] (bit 16), returns previous EE. 751 call sites."
+ },
+ "0x80004338": {
+  "name": "memmove",
+  "sig": "void* memmove(void* dst, const void* src, size_t n)",
+  "note": "overlap-safe byte copy; reverse iteration when dst > src. 366 call sites."
+ },
+ "0x801619c4": {
+  "name": "__savegpr27_31",
+  "sig": "void __savegpr27_31(void)",
+  "note": "Metrowerks callee-saved register spill helper (r27..r31 via r11)."
+ },
+ "0x80161a10": {
+  "name": "__restgpr27_31",
+  "sig": "void __restgpr27_31(void)",
+  "note": "Metrowerks register restore helper."
+ },
+ "0x8016184c": {
+  "name": "__virtual_dispatch",
+  "sig": "void* __virtual_dispatch(void* obj, s32 vtable_off)",
+  "note": "loads vtable ptr from obj, indexes by offset, tail-jumps via CTR. 191 sites."
+ },
+ "0x8000403c": {
+  "name": "main",
+  "sig": "void main(void)",
+  "note": "entry; init, then launch-mode switch (2/3/4) dispatching appMain(mode0/1/2) via function pointer."
+ }
+}
