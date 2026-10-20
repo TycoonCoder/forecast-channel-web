@@ -488,9 +488,20 @@
   /* ---------- API ---------- */
   G.init = function(canvasEl){
     canvas = canvasEl;
-    gl = canvas.getContext("webgl",{alpha:true, antialias:true, preserveDrawingBuffer:true})
-      || canvas.getContext("experimental-webgl",{alpha:true, antialias:true, preserveDrawingBuffer:true});
-    if(!gl) throw new Error("WebGL unavailable");
+    // Some environments (in-app webviews, older iPads, hardened browsers)
+    // refuse certain attribute combos — try progressively simpler ones.
+    const attempts = [
+      {alpha:true, antialias:true},
+      {alpha:true, antialias:false},
+      {alpha:false, antialias:true},
+      {alpha:false, antialias:false},
+      {}
+    ];
+    for(let i=0;i<attempts.length && !gl;i++){
+      gl = canvas.getContext("webgl", attempts[i]);
+      if(!gl) gl = canvas.getContext("experimental-webgl", attempts[i]);
+    }
+    if(!gl) throw new Error("refused every WebGL context configuration");
     gl.enable(gl.DEPTH_TEST);
     gl.clearColor(0,0,0,0);
 

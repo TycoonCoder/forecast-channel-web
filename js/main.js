@@ -234,12 +234,30 @@
   function boot(){
     const canvas = $("scene");
     try{
+      if(location.search.indexOf("fail-globe") >= 0)
+        throw new Error("forced failure (test hook)");
       window.FC_GLOBE.init(canvas);
       hookGlobe();
       updateMarkers();
     }catch(err){
       window.FC_ERRORS.push("globe: "+err);
-      $("nogl").hidden = false;
+      // Graceful degradation: no globe, but forecasts still work.
+      $("markers").style.display = "none";
+      const el = $("nogl");
+      el.innerHTML =
+        "<p><strong>The 3D globe couldn't start in this browser.</strong></p>" +
+        "<p class='why'>Reason: " + (err && err.message ? err.message : err) + "</p>" +
+        "<p>Pick a city for its forecast anyway:</p>";
+      const sel = document.createElement("select");
+      cities.forEach((c,i)=>{
+        const o = document.createElement("option");
+        o.value = i; o.textContent = c.name + " — " + c.country;
+        sel.appendChild(o);
+      });
+      sel.addEventListener("change", ()=>selectCity(+sel.value, false));
+      el.appendChild(sel);
+      el.style.zIndex = 5;   // below the forecast panel
+      el.hidden = false;
     }
   }
   if(document.readyState === "loading")
