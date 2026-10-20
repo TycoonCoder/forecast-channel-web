@@ -30,6 +30,37 @@ format decoders (written for this repo — see `tools/`):
 - Decoders live in `tools/extract_channel_assets.py` (TPL/BRRES/CMPR/RGB5A3/
   IA8, BRRES section walking, TEX0 extraction)
 
+## The actual decompilation (decomp/)
+
+This repo now contains a **real, in-progress decompilation** of the channel's
+actual executable, not just a tribute site:
+
+- `decomp/functions.json` — **9,573 recovered functions** with the full call
+  graph (call sites per target) and string cross-references, from the 1.5 MB
+  PowerPC text section of `contents/0000000d.app` (entry `0x8000403c`)
+- `decomp/symbols.json` — 1,574 recovered string literals at fixed addresses
+- `decomp/named_symbols.json` — functions identified from PPC idiom
+  signatures: `OSDisableInterrupts`/`OSRestoreInterrupts` (751/922 call
+  sites), `memmove`, Metrowerks save/restore GPR helpers, and the C++
+  virtual-dispatch thunk
+- `decomp/translated/functions_stage3.c` — the first hand-decompiled C:
+  the entry-point launch sequencer (`channel_main`, which switches on the
+  System Menu's launch-mode 2/3/4 and dispatches the app via function
+  pointer) plus the identified hot functions
+- `decomp/hot_functions.asm` — disassembly of the most-referenced functions
+- `tools/decomp_stage*.py` — the full pipeline: DOL parsing, raw-word
+  analysis (function starts, BL call graph, lis/addi string xrefs), capstone
+  disassembly, and translation
+- `tools/decrypt_wad.py` — WAD decryption (title key from ticket, AES-CBC
+  per content, SHA1-verified against the TMD)
+
+The binary statically links 19 RVL SDK modules (OS, GX, AX, AI, VI, SI, PAD,
+WPAD, KPAD, EXI, DVD, NAND, SC, SO, NWC24, CNT, HBM, NCD, DSP) — full
+browser-native execution additionally requires stages 4-8 (see
+`decomp/STATE.json`): complete C translation at scale, an HLE runtime
+(GX→WebGL, AX→WebAudio, NAND→IndexedDB), static recompilation to WASM, and
+WC24 forecast data from the RiiConnect24/WiiLink replacement servers.
+
 ## Features
 
 - Spinnable WebGL globe — drag with inertia, wheel/pinch/button zoom, gentle idle drift; automatic Canvas-2D fallback engine for browsers without WebGL; plain city-list fallback if both fail
