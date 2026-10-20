@@ -1,20 +1,42 @@
 # Forecast Channel — Web
 
-A from-scratch, browser-native recreation of the experience of the Wii's
-Forecast Channel: a slowly rotating day/night globe you can grab and spin,
-city dots with live forecasts, and a calm generative soundtrack. No emulator,
-no console code — this is original HTML/CSS/JS/WebGL that runs as a plain
-static site.
+A browser-native recreation of the Wii's Forecast Channel: a spinnable
+day/night globe with live weather for 90+ cities, rendered with the
+**channel's actual iconography and typeface**, extracted from a real
+Forecast Channel WAD.
+
+Unofficial fan project. Not affiliated with or endorsed by Nintendo.
+
+## What comes straight from the channel
+
+Extracted from `Forecast Channel (Wii) (USA) (WiiLink).wad` with custom
+format decoders (written for this repo — see `tools/`):
+
+- **Weather icons** (`assets/wicons/W_*.png`) — the channel's twelve forecast
+  icons (sun, moon, clouds, fog, rain, sleet, snow, hail, thunder, wind),
+  decoded from the banner TPL archives (Wii texture formats RGB5A3 / IA8),
+  used throughout the UI
+- **Small icon set** (`assets/wicons/icon_W_*.png`) — the channel's compact
+  icon variants
+- **Typeface** (`fonts/wiintlg.woff2`) — a subset of *Wii NTLG Gothic Regular*,
+  the channel's system font, converted from the channel's TTC and served as
+  woff2
+- **Globe texture tiles** (`assets/earth_*.png`) — all fourteen 1024×1024
+  CMPR-compressed earth tiles plus regional zooms (Japan, South Pole, EU, USA)
+  decoded from the channel's `earth.brres`. Shipped as reference assets; the
+  on-screen globe currently maps NASA Blue Marble imagery because the channel
+  tiles are octahedron-face UVs whose exact mesh parametrization (MDL0) is
+  still being reconstructed
+- Decoders live in `tools/extract_channel_assets.py` (TPL/BRRES/CMPR/RGB5A3/
+  IA8, BRRES section walking, TEX0 extraction)
 
 ## Features
 
-- **Spinnable WebGL globe** — drag to rotate with inertia, wheel/pinch/buttons to zoom, gentle auto-rotation when idle
-- **Real-time day/night terminator** computed from the actual solar position (declination + equation of time), so the shading matches the real world right now
-- **City lights on the night side**, atmospheric rim glow, drifting procedural clouds, starfield
-- **Live weather** for 90+ world cities via the free Open-Meteo API: current conditions, today/tomorrow detail, 5-day strip, wind, humidity, precipitation odds, UV index, sunrise/sunset, and a laundry hint (a small tribute to the JP-only 洗濯 index)
-- **"My City"** — geolocates you and forecasts the nearest city (or your exact spot)
-- °C/°F toggle, generative ambient music toggle
-- Everything is client-side: host it anywhere as static files
+- Spinnable WebGL globe — drag with inertia, wheel/pinch/button zoom, gentle idle drift; automatic Canvas-2D fallback engine for browsers without WebGL; plain city-list fallback if both fail
+- Real-time day/night terminator computed from the actual solar position (NOAA declination + equation of time)
+- City lights on the night side, atmosphere rim, drifting procedural clouds, RA/Dec-correct starfield
+- Live weather for 90+ world cities via Open-Meteo: current conditions, today/tomorrow, 5-day strip, wind, humidity, rain chance, UV index, sunrise/sunset, and a laundry hint (tribute to the JP-only 洗濯 index)
+- "My City" geolocation, °C/°F toggle, generative ambient soundtrack toggle
 
 ## Run it
 
@@ -25,24 +47,20 @@ python3 -m http.server 8080
 # → http://localhost:8080
 ```
 
-## Credits & data licenses
+## Credits & licenses
 
-- Map boundaries: [Natural Earth](https://www.naturalearthdata.com/) via
-  [world-atlas](https://github.com/topojson/world-atlas) TopoJSON — public domain
-- Star positions: derived from the HYG star database as packaged by
-  [d3-celestial](https://github.com/ofrohn/d3-celestial) — public domain
-  (only the ~hundred brightest stars are embedded)
+- Channel assets (icons, font subset, texture tiles): extracted by the
+  maintainer from a legally obtained channel dump for personal,
+  non-commercial study. All rights to those assets remain with their owners
+  (Nintendo / Weathernews).
+- Globe base imagery: NASA Blue Marble & Earth Lights (public domain)
 - Weather data: [Open-Meteo](https://open-meteo.com/) — free for
-  non-commercial use, attribution required (see the footer link in the UI)
-- All code here is original and MIT-licensed (see `LICENSE`)
-
-This project contains **no Nintendo assets** — no channel binaries, fonts,
-textures, or audio from the original channel. It is an independent fan
-tribute, not affiliated with or endorsed by Nintendo.
+  non-commercial use, attribution required
+- All code in this repository is original and MIT-licensed (see `LICENSE`)
 
 ## Live
 
-Deployed on GitHub Pages: https://tycooncoder.github.io/forecast-channel-web/
+https://tycooncoder.github.io/forecast-channel-web/
 
-To push updates: edit files, then run `bash deploy.sh` — it commits, pushes,
-and re-checks Pages. Idempotent, safe to re-run.
+To push updates: `bash deploy.sh` — commits, pushes, verifies Pages.
+Idempotent, safe to re-run.
