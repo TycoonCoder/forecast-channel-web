@@ -280,12 +280,12 @@ int fc_boot(const unsigned char* dol, unsigned len) {
         unsigned char* bi2 = host_ptr(BI2_ADDR);
         u32 v;
         v = BI2_ADDR;  bi2[0]=v>>24; bi2[1]=v>>16; bi2[2]=v>>8; bi2[3]=v;  /* (unused but harmless) */
-        v = 2u;        bi2[0x0C]=v>>24; bi2[0x0D]=v>>16; bi2[0x0E]=v>>8; bi2[0x0F]=v;  /* BI2+0xC = boot/launch type.
-                                                                     Decoded from 0x80004080: copied to
-                                                                     0x800030E8, then 2→launch_arg 0 (FRESH
-                                                                     START — renders!), 3→arg 1 (RETURNING —
-                                                                     WC24 wait loop, never renders), 4→arg 2
-                                                                     (dead). Must be 2! */
+        v = 0u;        bi2[0x0C]=v>>24; bi2[0x0D]=v>>16; bi2[0x0E]=v>>8; bi2[0x0F]=v;  /* BI2+0xC = launch type.
+                                                                     Decoded from 0x80004048 dispatcher:
+                                                                     2/3/4 = special trampoline launches
+                                                                     (WC24-return etc.), ANYTHING ELSE =
+                                                                     normal start → main(r14,r15) → the
+                                                                     channel's own render loop. 0 = normal. */
         v = 49u;       bi2[0x24]=v>>24; bi2[0x25]=v>>16; bi2[0x26]=v>>8; bi2[0x27]=v; /* country: USA */
         v = 1u;        bi2[0x2C]=v>>24; bi2[0x2D]=v>>16; bi2[0x2E]=v>>8; bi2[0x2F]=v; /* configured flag */
         v = BI2_ADDR;  bp[0xF4]=v>>24; bp[0xF5]=v>>16; bp[0xF6]=v>>8; bp[0xF7]=v;     /* BI2 pointer */
