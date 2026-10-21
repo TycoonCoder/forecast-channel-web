@@ -261,16 +261,25 @@ int fc_boot(const unsigned char* dol, unsigned len) {
     fc_cpu.external_pointer = fc_external_pointer;
 
     /* The Wii BIOS/apploader populates the boot-info page at 0x80000000
-     * before the channel runs; our zeroed MEM1 lacks it. The channel's
-     * 100-tick wait at 0x800e544c divides by mem[0x800000F8] — zero makes
-     * divwu yield ~0 and the wait never exits. Seed it so timer math works. */
-    *(u32*)host_ptr(0x800000F8u) = 0x10000000u;   /* timer divisor data */
-    *(u32*)host_ptr(0x800000F4u) = 0x80000000u;   /* BI2 self-pointer */
-    *(u32*)host_ptr(0x800000CCu) = 1u;            /* boot type: normal */
-    *(u32*)host_ptr(0x800000D0u) = 0u;            /* version */
-    /* 0x80000038 = console region (1=NTSC-J,2=NTSC-U/PAL subset) — the
-     * channel validated region 3/0xF in app_state per stage-7 analysis. */
-    *(u32*)host_ptr(0x80000038u) = 2u;            /* NTSC-U */
+     * before the channel runs; our zeroed MEM1 lacks it. Decoded from the
+     * channel's own init at 0x800e3f20:
+     *   mem[0x800000F4] = BI2 pointer → channel reads BI2+0x0C (region,
+     *     stored to 0x800030E8), BI2+0x24 (country, stored at -0x5d90(r13)),
+     *     and uses BI2+0x0C as a "settings" struct whose +0x2C must be
+     *     non-zero for the WC24 data subsystem to initialize (0x800e3610).
+     *   mem[0x800000F8] = timer divisor (wait loop at 0x800e544c). */
+    {
+        const u32 BI2_ADDR = 0x80600000u;   /* free MEM1 page, away from code */
+        u32* bi2 = (u32*)host_ptr(BI2_ADDR);
+        bi2[0x0C / 4] = 3u;                  /* console region (validated 3/0xF) */
+        bi2[0x24 / 4] = 49u;                 /* country: United States */
+        bi2[0x2C / 4] = 1u;                  /* settings "configured" flag */
+        *(u32*)host_ptr(0x800000F4u) = BI2_ADDR;      /* BI2 pointer */
+        *(u32*)host_ptr(0x800000F8u) = 0x10000000u;  /* timer divisor data */
+        *(u32*)host_ptr(0x800000CCu) = 1u;            /* boot type: normal */
+        *(u32*)host_ptr(0x800000D0u) = 0u;            /* version */
+        *(u32*)host_ptr(0x80000038u) = 2u;            /* NTSC-U boot flag */
+    }
 
     fc_cpu.pc = DOLRECOMP_ENTRY_POINT;      /* 0x8000403C */
     fc_cpu.gpr[1] = 0x803437A8;             /* SP from stage 5      */
