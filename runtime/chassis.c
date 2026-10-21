@@ -18,7 +18,7 @@ unsigned char *guest_mem;
 CPUState fc_cpu;
 
 unsigned char* host_ptr(u32 addr) {
-    u32 a = addr & 0x81FFFFFFu;
+    u32 a = addr & 0x01FFFFFFu;  /* physical offset within MEM1 (24MB = 0x1800000) */
     if (a >= MEM1_SIZE) {
         EM_ASM({ console.error('[host_ptr] OOB:', $0, '->', $1); }, addr, a);
         return guest_mem; // return base to trap

@@ -996,10 +996,9 @@ if (Module['printErr']) err = Module['printErr'];
 // end include: postlibrary.js
 
 var ASM_CONSTS = {
-  2856: ($0, $1) => { console.error('[host_ptr] OOB:', $0, '->', $1); },  
- 2908: ($0, $1) => { console.log('[chassis] guest_mem allocated at', $0, 'size', $1); },  
- 2977: ($0, $1, $2, $3) => { console.log('[load] text', $0, 'addr=0x', $1.toString(16), 'off=0x', $2.toString(16), 'sz=0x', $3.toString(16)); },  
- 3094: ($0, $1, $2, $3) => { console.log('[load] data', $0, 'addr=0x', $1.toString(16), 'off=0x', $2.toString(16), 'sz=0x', $3.toString(16)); }
+  2856: ($0, $1) => { console.log('[chassis] guest_mem allocated at', $0, 'size', $1); },  
+ 2925: ($0, $1, $2, $3) => { console.log('[load] text', $0, 'addr=0x', $1.toString(16), 'off=0x', $2.toString(16), 'sz=0x', $3.toString(16)); },  
+ 3042: ($0, $1, $2, $3) => { console.log('[load] data', $0, 'addr=0x', $1.toString(16), 'off=0x', $2.toString(16), 'sz=0x', $3.toString(16)); }
 };
 
 // Imports from the Wasm binary.
