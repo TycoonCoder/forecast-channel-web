@@ -279,6 +279,11 @@ int fc_boot(const unsigned char* dol, unsigned len) {
         *(u32*)host_ptr(0x800000CCu) = 1u;            /* boot type: normal */
         *(u32*)host_ptr(0x800000D0u) = 0u;            /* version */
         *(u32*)host_ptr(0x80000038u) = 2u;            /* NTSC-U boot flag */
+        *(u32*)host_ptr(0x8000002Cu) = 1u;            /* apploader/BI flag — the
+                                                        0x800e3610 gate reads
+                                                        boot_page+0x2C and needs
+                                                        it non-zero for the data
+                                                        subsystem to initialize */
     }
 
     fc_cpu.pc = DOLRECOMP_ENTRY_POINT;      /* 0x8000403C */
