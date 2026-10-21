@@ -159,6 +159,50 @@ static void fc_cache_control(CPUState* cpu, u8 op, u32 ea, u32 cia) {
     (void)cpu; (void)op; (void)ea; (void)cia;
 }
 
+/* ---------------- External (MMIO) hooks ----------------
+ * The channel pokes real hardware: DSP/audio DMA (0xCD006xxx), EXI
+ * (0xCD8001xx), AI (0xCD0000C0), VI (0xCD0000xx), GX FIFO (0xCC000000).
+ * On a Wii these carry data; in the browser we model the minimal
+ * semantics the channel needs: reads report idle/done, writes sink. */
+static u64 fc_external_read(CPUState* cpu, u32 ea, u8 size) {
+    (void)cpu; (void)size;
+    static u32 logged = 0;
+    if (logged < 40) {
+        EM_ASM({ console.log('[mmio] read', $0 ? '32' : '8', ' 0x', ($1>>>0).toString(16)); }, size == 32, ea);
+        logged++;
+    }
+    /* DSP DMA status at 0xCD00680C: bit0 = busy → 0 means transfer done.
+     * Everything else reads idle/absent. */
+    return 0;
+}
+
+static void fc_external_write(CPUState* cpu, u32 ea, u64 value, u8 size) {
+    (void)cpu; (void)value; (void)size;
+    static u32 logged = 0;
+    if (logged < 40) {
+        EM_ASM({ console.log('[mmio] write 0x', ($0>>>0).toString(16), ' ← 0x', ($1>>>0).toString(16)); }, ea, value);
+        logged++;
+    }
+}
+
+static u32 fc_external_read32(CPUState* cpu, u32 ea, u8 rid) {
+    (void)rid;
+    return (u32)fc_external_read(cpu, ea, 32);
+}
+
+static void fc_external_write32(CPUState* cpu, u32 ea, u32 value, u8 rid) {
+    (void)rid;
+    fc_external_write(cpu, ea, value, 32);
+}
+
+static void* fc_external_pointer(CPUState* cpu, u32 ea, u32 size) {
+    /* Redirect MMIO pointer requests into a scratch page so vectorized
+     * guest accesses don't walk off memory. */
+    (void)cpu; (void)ea; (void)size;
+    static unsigned char scratch[4096] = {0};
+    return scratch;
+}
+
 /* ---- main guest loop (called from JS every frame via requestAnimationFrame) ---- */
 int fc_boot(const unsigned char* dol, unsigned len) {
     if (load_guest_image(dol, len)) return -1;
@@ -184,6 +228,11 @@ int fc_boot(const unsigned char* dol, unsigned len) {
     fc_cpu.spr_write = fc_spr_write_hook;
     fc_cpu.instruction_fallback = fc_instruction_fallback;
     fc_cpu.cache_control = fc_cache_control;
+    fc_cpu.external_read    = fc_external_read;
+    fc_cpu.external_write   = fc_external_write;
+    fc_cpu.external_read32  = fc_external_read32;
+    fc_cpu.external_write32 = fc_external_write32;
+    fc_cpu.external_pointer = fc_external_pointer;
 
     fc_cpu.pc = DOLRECOMP_ENTRY_POINT;      /* 0x8000403C */
     fc_cpu.gpr[1] = 0x803437A8;             /* SP from stage 5      */
