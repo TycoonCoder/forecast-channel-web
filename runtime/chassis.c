@@ -345,6 +345,16 @@ int fc_step(u32 max_blocks) {
             return 0;
         }
         if (fc_cpu.exception) {
+            /* `sc` (system-call) is NOT fatal on Wii: the RVL SDK uses it as
+             * a cache-sync barrier (DCFlushRange etc. end in sc; the OS
+             * handler at vector 0x00C00 just resumes). Simulate that: clear
+             * the exception and resume where the handler would return. */
+            if (fc_cpu.exception == PPC_EXC_SYSTEM_CALL) {
+                fc_cpu.exception = 0;
+                fc_cpu.pc = fc_cpu.srr0;   /* set by ppc_take_exception = sc addr */
+                fc_cpu.pc += 4;            /* resume past the sc instruction */
+                continue;
+            }
             EM_ASM({
                 console.error('[fc_step] guest halted:',
                     'pc=0x', ($0>>>0).toString(16),
