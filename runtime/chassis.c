@@ -208,7 +208,10 @@ static u64 fc_external_read(CPUState* cpu, u32 ea, u8 size) {
     /* Address-aware responses (see header comment above) */
     if (ea == 0xCC00500Au) return 0x20u;   /* PI status: bit5 set = ready */
     if (ea == 0xCC005000u) return 0x46u;   /* PI: standard config */
-    if (ea == 0xCC005004u) return fc_pi_reset_done ? 0x8000u : 0x0000u;
+    if (ea == 0xCC005004u) return fc_pi_reset_done ? 0x8001u : 0x0000u;
+    /* 0x8001 = bit15 (reset done, polled at 0x800e576c until SET) +
+     * bit0 (int flag, combined-word poll at 0x800e56a0 waits until SET:
+     * 'rlwinm. bit0; beq loop' — beq LOOPS WHILE CLEAR). */
     return 0;
 }
 
