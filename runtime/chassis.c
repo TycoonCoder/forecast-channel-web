@@ -260,6 +260,18 @@ int fc_boot(const unsigned char* dol, unsigned len) {
     fc_cpu.external_write32 = fc_external_write32;
     fc_cpu.external_pointer = fc_external_pointer;
 
+    /* The Wii BIOS/apploader populates the boot-info page at 0x80000000
+     * before the channel runs; our zeroed MEM1 lacks it. The channel's
+     * 100-tick wait at 0x800e544c divides by mem[0x800000F8] — zero makes
+     * divwu yield ~0 and the wait never exits. Seed it so timer math works. */
+    *(u32*)host_ptr(0x800000F8u) = 0x10000000u;   /* timer divisor data */
+    *(u32*)host_ptr(0x800000F4u) = 0x80000000u;   /* BI2 self-pointer */
+    *(u32*)host_ptr(0x800000CCu) = 1u;            /* boot type: normal */
+    *(u32*)host_ptr(0x800000D0u) = 0u;            /* version */
+    /* 0x80000038 = console region (1=NTSC-J,2=NTSC-U/PAL subset) — the
+     * channel validated region 3/0xF in app_state per stage-7 analysis. */
+    *(u32*)host_ptr(0x80000038u) = 2u;            /* NTSC-U */
+
     fc_cpu.pc = DOLRECOMP_ENTRY_POINT;      /* 0x8000403C */
     fc_cpu.gpr[1] = 0x803437A8;             /* SP from stage 5      */
     fc_cpu.gpr[2] = 0x80339900;             /* SDA2                 */
