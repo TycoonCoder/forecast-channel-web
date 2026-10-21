@@ -269,21 +269,23 @@ int fc_boot(const unsigned char* dol, unsigned len) {
      *     non-zero for the WC24 data subsystem to initialize (0x800e3610).
      *   mem[0x800000F8] = timer divisor (wait loop at 0x800e544c). */
     {
+        /* All guest loads/stores go through read_be32/write_be32 (Wii is
+         * big-endian) — seeds must be written BIG-ENDIAN or the channel
+         * reads byte-swapped garbage. */
         const u32 BI2_ADDR = 0x80600000u;   /* free MEM1 page, away from code */
-        u32* bi2 = (u32*)host_ptr(BI2_ADDR);
-        bi2[0x0C / 4] = 3u;                  /* console region (validated 3/0xF) */
-        bi2[0x24 / 4] = 49u;                 /* country: United States */
-        bi2[0x2C / 4] = 1u;                  /* settings "configured" flag */
-        *(u32*)host_ptr(0x800000F4u) = BI2_ADDR;      /* BI2 pointer */
-        *(u32*)host_ptr(0x800000F8u) = 0x10000000u;  /* timer divisor data */
-        *(u32*)host_ptr(0x800000CCu) = 1u;            /* boot type: normal */
-        *(u32*)host_ptr(0x800000D0u) = 0u;            /* version */
-        *(u32*)host_ptr(0x80000038u) = 2u;            /* NTSC-U boot flag */
-        *(u32*)host_ptr(0x8000002Cu) = 1u;            /* apploader/BI flag — the
-                                                        0x800e3610 gate reads
-                                                        boot_page+0x2C and needs
-                                                        it non-zero for the data
-                                                        subsystem to initialize */
+        unsigned char* bp = guest_mem;       /* 0x80000000 (offset 0) */
+        unsigned char* bi2 = host_ptr(BI2_ADDR);
+        u32 v;
+        v = BI2_ADDR;  bi2[0]=v>>24; bi2[1]=v>>16; bi2[2]=v>>8; bi2[3]=v;  /* (unused but harmless) */
+        v = 3u;        bi2[0x0C]=v>>24; bi2[0x0D]=v>>16; bi2[0x0E]=v>>8; bi2[0x0F]=v;  /* region (validated 3/0xF) */
+        v = 49u;       bi2[0x24]=v>>24; bi2[0x25]=v>>16; bi2[0x26]=v>>8; bi2[0x27]=v; /* country: USA */
+        v = 1u;        bi2[0x2C]=v>>24; bi2[0x2D]=v>>16; bi2[0x2E]=v>>8; bi2[0x2F]=v; /* configured flag */
+        v = BI2_ADDR;  bp[0xF4]=v>>24; bp[0xF5]=v>>16; bp[0xF6]=v>>8; bp[0xF7]=v;     /* BI2 pointer */
+        v = 0x10000000u; bp[0xF8]=v>>24; bp[0xF9]=v>>16; bp[0xFA]=v>>8; bp[0xFB]=v;  /* timer divisor data */
+        v = 1u;        bp[0xCC]=v>>24; bp[0xCD]=v>>16; bp[0xCE]=v>>8; bp[0xCF]=v;    /* boot type: normal */
+        v = 0u;        bp[0xD0]=0; bp[0xD1]=0; bp[0xD2]=0; bp[0xD3]=0;               /* version */
+        v = 2u;        bp[0x38]=v>>24; bp[0x39]=v>>16; bp[0x3A]=v>>8; bp[0x3B]=v;    /* NTSC-U boot flag */
+        v = 1u;        bp[0x2C]=v>>24; bp[0x2D]=v>>16; bp[0x2E]=v>>8; bp[0x2F]=v;    /* apploader/BI flag (0x800e3610 gate) */
     }
 
     fc_cpu.pc = DOLRECOMP_ENTRY_POINT;      /* 0x8000403C */
