@@ -360,7 +360,15 @@
       requestAnimationFrame(frame);
     }
     console.log('[frame] starting animation loop');
-    requestAnimationFrame(frame);
+    // Use setTimeout as fallback when RAF is throttled (background tab)
+    function scheduleFrame() {
+      if (document.hidden) {
+        setTimeout(frame, 16);
+      } else {
+        requestAnimationFrame(frame);
+      }
+    }
+    scheduleFrame();
   }
 
   // Wait for DOM and Module factory
