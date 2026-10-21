@@ -289,6 +289,13 @@ int fc_boot(const unsigned char* dol, unsigned len) {
         v = 0u;        bp[0xD0]=0; bp[0xD1]=0; bp[0xD2]=0; bp[0xD3]=0;               /* version */
         v = 2u;        bp[0x38]=v>>24; bp[0x39]=v>>16; bp[0x3A]=v>>8; bp[0x3B]=v;    /* NTSC-U boot flag */
         v = 1u;        bp[0x2C]=v>>24; bp[0x2D]=v>>16; bp[0x2E]=v>>8; bp[0x2F]=v;    /* apploader/BI flag (0x800e3610 gate) */
+        /* Channel error/state word at boot+0x30E6 (16-bit BE): the WC24 poll
+         * treats 0x8200 as "still waiting" and anything else as reportable.
+         * 0x9000 is the channel's own connect-error code (written at
+         * 0x800e42c4 when a global error flag is set). Seeding it makes the
+         * channel take its native WC24-failure path instead of polling
+         * forever — the same behavior as a Wii with no WC24 service. */
+        bp[0x30E6]=0x90; bp[0x30E7]=0x00;
     }
 
     fc_cpu.pc = DOLRECOMP_ENTRY_POINT;      /* 0x8000403C */
