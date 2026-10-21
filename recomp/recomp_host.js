@@ -339,7 +339,7 @@
       try {
         alive = Module._fc_step(FRAME_BLOCKS);
       } catch(e) {
-        console.error('[frame] fc_step threw:', e);
+        console.error('[frame] fc_step threw:', e && e.message ? e.message : String(e));
         running = false;
         return;
       }

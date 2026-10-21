@@ -146,6 +146,16 @@ static void fc_instruction_fallback(CPUState* cpu, u32 raw, u32 cia) {
         case 598: /* sync */ return;
         case 982: /* icbi — cache invalidate, no-op on flat memory */ return;
         case 254: /* dcbt — prefetch hint */ return;
+        case 54:  /* dcbst — store-back hint, no-op */ return;
+        case 86:  /* dcbf — flush hint, no-op */ return;
+        case 470: /* dcbi — invalidate, no-op */ return;
+        case 278: /* tlbie — tlb invalidate, no-op */ return;
+        case 17:  /* mfmsr — supervisor mode reports 0x0000.30? report MSR with FP */ 
+            cpu->gpr[(raw >> 21) & 0x1F] = cpu->msr;
+            return;
+        case 146: /* mtmsr — accept and store (keep FP bit set) */
+            cpu->msr = cpu->gpr[(raw >> 21) & 0x1F] | FC_MSR_FP;
+            return;
         default:
             break;
         }
