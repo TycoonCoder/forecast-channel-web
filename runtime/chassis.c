@@ -58,11 +58,21 @@ int load_guest_image(const unsigned char* dol, unsigned len) {
 int fc_boot(const unsigned char* dol, unsigned len) {
     if (load_guest_image(dol, len)) return -1;
     memset(&fc_cpu, 0, sizeof(fc_cpu));
+    
+    /* Initialize DolRecomp CPU state - it manages its own RAM pointer */
+    if (!cpu_init(&fc_cpu)) {
+        EM_ASM({ console.error('[fc_boot] cpu_init failed'); });
+        return -1;
+    }
+    
+    /* Point DolRecomp's RAM to our guest memory */
+    fc_cpu.ram = guest_mem;
+    fc_cpu.ram_size = MEM1_SIZE;
+    
     fc_cpu.pc = DOLRECOMP_ENTRY_POINT;      /* 0x8000403C */
     fc_cpu.gpr[1] = 0x803437A8;             /* SP from stage 5      */
     fc_cpu.gpr[2] = 0x80339900;             /* SDA2                 */
     fc_cpu.gpr[13] = 0x80337540;            /* SDA                  */
-    fc_cpu.ram_size = MEM1_SIZE;            /* for alias dispatch   */
     return 0;
 }
 
