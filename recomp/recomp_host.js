@@ -324,12 +324,14 @@
     running = true;
 
     let steps = 0;
-    const FRAME_BLOCKS = 20000;
-    function frame(now) {
-      console.log('[frame] callback at', now);
-      if (!running) return;
-      const dt = (now - lastTime) / 1000;
-      lastTime = now;
+      const FRAME_BLOCKS = 20000;
+      function frame(now) {
+        // setTimeout doesn't pass timestamp; use performance.now() as fallback
+        now = now || performance.now();
+        console.log('[frame] callback at', now);
+        if (!running) return;
+        const dt = (now - lastTime) / 1000;
+        lastTime = now;
       
       console.log('[frame] calling fc_step', FRAME_BLOCKS);
       // run a slice of recompiled blocks
