@@ -1019,6 +1019,10 @@ var _load_guest_image,
   _free,
   _fc_get_pc,
   _fc_get_last_pc,
+  _fc_hist_count,
+  _fc_hist_pc_at,
+  _fc_hist_n_at,
+  _fc_hist_reset,
   _fc_step,
   _setThrew,
   __emscripten_stack_restore,
@@ -1036,6 +1040,10 @@ function assignWasmExports(wasmExports) {
   _free = Module['_free'] = wasmExports['free'];
   _fc_get_pc = Module['_fc_get_pc'] = wasmExports['fc_get_pc'];
   _fc_get_last_pc = Module['_fc_get_last_pc'] = wasmExports['fc_get_last_pc'];
+  _fc_hist_count = Module['_fc_hist_count'] = wasmExports['fc_hist_count'];
+  _fc_hist_pc_at = Module['_fc_hist_pc_at'] = wasmExports['fc_hist_pc_at'];
+  _fc_hist_n_at = Module['_fc_hist_n_at'] = wasmExports['fc_hist_n_at'];
+  _fc_hist_reset = Module['_fc_hist_reset'] = wasmExports['fc_hist_reset'];
   _fc_step = Module['_fc_step'] = wasmExports['fc_step'];
   _setThrew = wasmExports['setThrew'];
   __emscripten_stack_restore = wasmExports['_emscripten_stack_restore'];

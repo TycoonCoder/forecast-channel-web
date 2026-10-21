@@ -283,6 +283,32 @@ int fc_boot(const unsigned char* dol, unsigned len) {
 u32 fc_get_pc(void) { return fc_cpu.pc; }
 u32 fc_get_last_pc(void) { return fc_last_dispatch_pc; }
 
+/* ---- dispatch-pc histogram (sampled) for init-progress diagnostics ---- */
+#define FC_HIST_BUCKETS 1024u
+static u32 fc_hist_pc[FC_HIST_BUCKETS];
+static u32 fc_hist_n[FC_HIST_BUCKETS];
+static u32 fc_hist_used = 0;
+
+static void fc_hist_record(u32 pc) {
+    for (u32 i = 0; i < fc_hist_used; i++) {
+        if (fc_hist_pc[i] == pc) { fc_hist_n[i]++; return; }
+    }
+    if (fc_hist_used < FC_HIST_BUCKETS) {
+        fc_hist_pc[fc_hist_used] = pc;
+        fc_hist_n[fc_hist_used] = 1;
+        fc_hist_used++;
+    }
+}
+
+/* JS reads: returns bucket count, or pc/n at index */
+u32 fc_hist_count(void) { return fc_hist_used; }
+u32 fc_hist_pc_at(u32 i) { return i < fc_hist_used ? fc_hist_pc[i] : 0; }
+u32 fc_hist_n_at(u32 i)  { return i < fc_hist_used ? fc_hist_n[i] : 0; }
+void fc_hist_reset(void) {
+    fc_hist_used = 0;
+    for (u32 i = 0; i < FC_HIST_BUCKETS; i++) fc_hist_n[i] = 0;
+}
+
 /* run up to N blocks; returns 0 when the guest halted (exception/exit).
  * Custom loop over dolrecomp_call (instead of dolrecomp_run_blocks) so we can
  * watch pc per-block, detect spin loops, and keep the browser responsive. */
@@ -295,6 +321,7 @@ int fc_step(u32 max_blocks) {
 
     while (blocks < max_blocks) {
         fc_last_dispatch_pc = fc_cpu.pc;
+        if ((blocks & 63u) == 0) fc_hist_record(fc_cpu.pc);
         if (!dolrecomp_call(&fc_cpu, fc_cpu.pc)) {
             EM_ASM({
                 console.error('[fc_step] dispatch failed at pc=0x', ($0>>>0).toString(16));
