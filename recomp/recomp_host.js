@@ -386,6 +386,20 @@
         return sorted;
       },
       steps: () => steps,
+      // Region-transition trace from the C side
+      trace: () => {
+        if (!Module._fc_trace_count) return 'n/a';
+        const n = Module._fc_trace_count();
+        const out = [];
+        for (let i = 0; i < n; i++) {
+          out.push([Module._fc_trace_from_at(i) >>> 0, Module._fc_trace_to_at(i) >>> 0]);
+        }
+        console.log('region transitions (from→to), first 60:');
+        for (const [f, t] of out.slice(0, 60)) {
+          console.log('  0x' + f.toString(16), '→', '0x' + t.toString(16));
+        }
+        return out;
+      },
       // Full dispatch-pc histogram from the C side
       dispatch: () => {
         if (!Module._fc_hist_count) return 'n/a';

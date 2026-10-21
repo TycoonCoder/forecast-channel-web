@@ -316,6 +316,29 @@ static void fc_hist_record(u32 pc) {
     }
 }
 
+/* ---- region-transition trace: log every hop between 64KB regions ---- */
+#define FC_TRACE_MAX 512u
+static u32 fc_trace_from[FC_TRACE_MAX];
+static u32 fc_trace_to[FC_TRACE_MAX];
+static u32 fc_trace_used = 0;
+static u32 fc_trace_prev_region = 0xFFFFFFFFu;
+
+static void fc_trace_record(u32 pc) {
+    u32 region = pc >> 16;
+    if (region != fc_trace_prev_region) {
+        if (fc_trace_used < FC_TRACE_MAX) {
+            fc_trace_from[fc_trace_used] = (fc_trace_prev_region << 16) | 0xFFFFu;
+            fc_trace_to[fc_trace_used] = pc;
+            fc_trace_used++;
+        }
+        fc_trace_prev_region = region;
+    }
+}
+
+u32 fc_trace_count(void) { return fc_trace_used; }
+u32 fc_trace_from_at(u32 i) { return i < fc_trace_used ? fc_trace_from[i] : 0; }
+u32 fc_trace_to_at(u32 i)   { return i < fc_trace_used ? fc_trace_to[i] : 0; }
+
 /* JS reads: returns bucket count, or pc/n at index */
 u32 fc_hist_count(void) { return fc_hist_used; }
 u32 fc_hist_pc_at(u32 i) { return i < fc_hist_used ? fc_hist_pc[i] : 0; }
@@ -338,6 +361,7 @@ int fc_step(u32 max_blocks) {
     while (blocks < max_blocks) {
         fc_last_dispatch_pc = fc_cpu.pc;
         if ((blocks & 63u) == 0) fc_hist_record(fc_cpu.pc);
+        fc_trace_record(fc_cpu.pc);
         if (!dolrecomp_call(&fc_cpu, fc_cpu.pc)) {
             EM_ASM({
                 console.error('[fc_step] dispatch failed at pc=0x', ($0>>>0).toString(16));

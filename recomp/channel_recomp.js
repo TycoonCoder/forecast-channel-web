@@ -996,20 +996,20 @@ if (Module['printErr']) err = Module['printErr'];
 // end include: postlibrary.js
 
 var ASM_CONSTS = {
-  2904: ($0, $1) => { console.log('[chassis] guest_mem allocated at', $0, 'size', $1); },  
- 2973: ($0, $1, $2, $3) => { console.log('[load] text', $0, 'addr=0x', $1.toString(16), 'off=0x', $2.toString(16), 'sz=0x', $3.toString(16)); },  
- 3090: ($0, $1, $2, $3) => { console.log('[load] data', $0, 'addr=0x', $1.toString(16), 'off=0x', $2.toString(16), 'sz=0x', $3.toString(16)); },  
- 3207: () => { console.error('[fc_boot] cpu_init failed'); },  
- 3255: ($0) => { console.error('[fc_step] dispatch failed at pc=0x', ($0>>>0).toString(16)); },  
- 3335: ($0, $1, $2, $3) => { console.error('[fc_step] guest halted:', 'pc=0x', ($0>>>0).toString(16), 'exception=0x', ($1>>>0).toString(16), 'prog_exc=0x', ($2>>>0).toString(16), 'dar=0x', ($3>>>0).toString(16)); },  
- 3523: ($0) => { console.warn('[fc_step] spin suspected at pc=0x', ($0>>>0).toString(16), '— likely HLE-blocked; breaking slice'); },  
- 3643: ($0) => { console.log('[spr] read  spr=', $0); },  
- 3684: ($0, $1) => { console.log('[spr] write spr=', $0, 'val=0x', ($1>>>0).toString(16)); },  
- 3758: ($0, $1) => { console.log('[fallback] mfspr r', $0, ',', $1, ' → 0'); },  
- 3820: ($0, $1, $2) => { console.log('[fallback] mtspr', $0, ', r', $1, '=0x', ($2>>>0).toString(16)); },  
- 3902: ($0, $1) => { console.error('[fallback] unhandled insn raw=0x', ($0>>>0).toString(16), 'at 0x', ($1>>>0).toString(16)); },  
- 4012: ($0) => { console.log('[mmio] R 0x', ($0>>>0).toString(16)); },  
- 4067: ($0, $1) => { console.log('[mmio] W 0x', ($0>>>0).toString(16), ' ← 0x', ($1>>>0).toString(16)); }
+  2912: ($0, $1) => { console.log('[chassis] guest_mem allocated at', $0, 'size', $1); },  
+ 2981: ($0, $1, $2, $3) => { console.log('[load] text', $0, 'addr=0x', $1.toString(16), 'off=0x', $2.toString(16), 'sz=0x', $3.toString(16)); },  
+ 3098: ($0, $1, $2, $3) => { console.log('[load] data', $0, 'addr=0x', $1.toString(16), 'off=0x', $2.toString(16), 'sz=0x', $3.toString(16)); },  
+ 3215: () => { console.error('[fc_boot] cpu_init failed'); },  
+ 3263: ($0) => { console.error('[fc_step] dispatch failed at pc=0x', ($0>>>0).toString(16)); },  
+ 3343: ($0, $1, $2, $3) => { console.error('[fc_step] guest halted:', 'pc=0x', ($0>>>0).toString(16), 'exception=0x', ($1>>>0).toString(16), 'prog_exc=0x', ($2>>>0).toString(16), 'dar=0x', ($3>>>0).toString(16)); },  
+ 3531: ($0) => { console.warn('[fc_step] spin suspected at pc=0x', ($0>>>0).toString(16), '— likely HLE-blocked; breaking slice'); },  
+ 3651: ($0) => { console.log('[spr] read  spr=', $0); },  
+ 3692: ($0, $1) => { console.log('[spr] write spr=', $0, 'val=0x', ($1>>>0).toString(16)); },  
+ 3766: ($0, $1) => { console.log('[fallback] mfspr r', $0, ',', $1, ' → 0'); },  
+ 3828: ($0, $1, $2) => { console.log('[fallback] mtspr', $0, ', r', $1, '=0x', ($2>>>0).toString(16)); },  
+ 3910: ($0, $1) => { console.error('[fallback] unhandled insn raw=0x', ($0>>>0).toString(16), 'at 0x', ($1>>>0).toString(16)); },  
+ 4020: ($0) => { console.log('[mmio] R 0x', ($0>>>0).toString(16)); },  
+ 4075: ($0, $1) => { console.log('[mmio] W 0x', ($0>>>0).toString(16), ' ← 0x', ($1>>>0).toString(16)); }
 };
 
 // Imports from the Wasm binary.
@@ -1019,6 +1019,9 @@ var _load_guest_image,
   _free,
   _fc_get_pc,
   _fc_get_last_pc,
+  _fc_trace_count,
+  _fc_trace_from_at,
+  _fc_trace_to_at,
   _fc_hist_count,
   _fc_hist_pc_at,
   _fc_hist_n_at,
@@ -1040,6 +1043,9 @@ function assignWasmExports(wasmExports) {
   _free = Module['_free'] = wasmExports['free'];
   _fc_get_pc = Module['_fc_get_pc'] = wasmExports['fc_get_pc'];
   _fc_get_last_pc = Module['_fc_get_last_pc'] = wasmExports['fc_get_last_pc'];
+  _fc_trace_count = Module['_fc_trace_count'] = wasmExports['fc_trace_count'];
+  _fc_trace_from_at = Module['_fc_trace_from_at'] = wasmExports['fc_trace_from_at'];
+  _fc_trace_to_at = Module['_fc_trace_to_at'] = wasmExports['fc_trace_to_at'];
   _fc_hist_count = Module['_fc_hist_count'] = wasmExports['fc_hist_count'];
   _fc_hist_pc_at = Module['_fc_hist_pc_at'] = wasmExports['fc_hist_pc_at'];
   _fc_hist_n_at = Module['_fc_hist_n_at'] = wasmExports['fc_hist_n_at'];
