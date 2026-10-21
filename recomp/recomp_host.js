@@ -338,7 +338,6 @@
       let alive = 0;
       try {
         alive = Module._fc_step(FRAME_BLOCKS);
-        console.log('[frame] fc_step returned', alive);
       } catch(e) {
         console.error('[frame] fc_step threw:', e);
         running = false;
@@ -359,10 +358,9 @@
         Module._render_frame(dt);
       }
       
-      requestAnimationFrame(frame);
+      // Re-schedule with visibility awareness (RAF is throttled in hidden tabs)
+      scheduleFrame();
     }
-    console.log('[frame] starting animation loop');
-    // Use setTimeout as fallback when RAF is throttled (background tab)
     function scheduleFrame() {
       if (document.hidden) {
         setTimeout(frame, 16);
@@ -370,6 +368,7 @@
         requestAnimationFrame(frame);
       }
     }
+    console.log('[frame] starting animation loop');
     scheduleFrame();
   }
 

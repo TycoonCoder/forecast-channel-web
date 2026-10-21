@@ -97,6 +97,13 @@ static void fc_instruction_fallback(CPUState* cpu, u32 raw, u32 cia) {
     u32 opcode = raw >> 26;
     u32 ext = (raw >> 1) & 0x3FF;
 
+    /* Generated blocks END at the fallback instruction and resume at
+     * ctx->pc — which is still the fallback's own address. The fallback
+     * handler is therefore responsible for advancing pc past the
+     * instruction (verified against chunk_0000: `ctx->pc = addr;
+     * ppc_fallback_instruction(...); return;`). */
+    cpu->pc = cia + 4;
+
     if (opcode == 31) {
         u32 rd_rs = (raw >> 21) & 0x1F;
         u32 spr = (((raw >> 11) & 0x1F) << 5) | ((raw >> 16) & 0x1F);
@@ -188,7 +195,7 @@ int fc_boot(const unsigned char* dol, unsigned len) {
 /* run up to N blocks; returns 0 when the guest halted (exception/exit).
  * Custom loop over dolrecomp_call (instead of dolrecomp_run_blocks) so we can
  * watch pc per-block, detect spin loops, and keep the browser responsive. */
-#define FC_SPIN_WINDOW 4096u   /* pc-repeat window for spin detection */
+#define FC_SPIN_WINDOW 262144u  /* very lenient: legit SDK polling loops revisit pcs */
 
 int fc_step(u32 max_blocks) {
     fc_cpu.timebase += FC_TB_PER_STEP;
