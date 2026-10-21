@@ -66,9 +66,9 @@
     void main() {
       vec4 tex = texture2D(u_tex, v_uv);
       float NdotL = max(dot(normalize(v_normal), normalize(u_sun)), 0.0);
-      float day = smoothstep(-0.1, 0.2, dot(normalize(v_normal), normalize(u_sun)));
+      float day = step(0.0, dot(normalize(v_normal), normalize(u_sun)));
       vec3 day_color = v_color.rgb * tex.rgb * (0.3 + 0.7 * NdotL);
-      vec3 night_color = v_color.rgb * tex.rgb * (0.15 + 0.35 * NdotL) + vec3(0.1, 0.15, 0.3) * (1.0 - day);
+      vec3 night_color = v_color.rgb * tex.rgb * 0.2 + vec3(0.1, 0.15, 0.3) * (1.0 - day);
       vec3 color = mix(night_color, day_color, day);
       gl_FragColor = vec4(color * v_color.a, v_color.a);
     }`;
@@ -79,6 +79,7 @@
       gl.compileShader(s);
       if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
         console.error("Shader error:", gl.getShaderInfoLog(s));
+        console.error("Shader source:", src);
         gl.deleteShader(s);
         return null;
       }
@@ -87,6 +88,9 @@
     
     const vs = compileShader(gl.VERTEX_SHADER, vsSrc);
     const fs = compileShader(gl.FRAGMENT_SHADER, fsSrc);
+    if (!vs || !fs) {
+      throw new Error("Shader compilation failed - check console for details");
+    }
     const prog = gl.createProgram();
     gl.attachShader(prog, vs);
     gl.attachShader(prog, fs);
