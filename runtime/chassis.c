@@ -296,6 +296,12 @@ int fc_boot(const unsigned char* dol, unsigned len) {
          * channel take its native WC24-failure path instead of polling
          * forever — the same behavior as a Wii with no WC24 service. */
         bp[0x30E6]=0x90; bp[0x30E7]=0x00;
+        /* mem[0x80003118] = MEM2 size. The channel's console-state function
+         * (0x800e3610 → 0x800e37c8) compares it against 0x04000000 and
+         * returns error 0x10001010 unless it matches — i.e., it requires a
+         * real Wii (64MB MEM2). Without this, the WC24 poll never yields a
+         * usable state and the app thread never advances. */
+        v = 0x04000000u; bp[0x3118]=v>>24; bp[0x3119]=v>>16; bp[0x311A]=v>>8; bp[0x311B]=v;
     }
 
     fc_cpu.pc = DOLRECOMP_ENTRY_POINT;      /* 0x8000403C */
