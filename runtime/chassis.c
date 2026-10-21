@@ -303,10 +303,9 @@ int fc_step(u32 max_blocks) {
 
         /* Advance the guest timebase WITH the block stream so mftb-based
          * waits (the channel paces init/render in 100ms ticks) complete
-         * mid-slice exactly like real hardware. ~64 TB ticks per block
-         * approximates Broadway's TB/bus ratio for our block sizes:
-         * 20000 blocks ≈ 21ms of guest time ≈ one 60Hz slice. */
-        fc_cpu.timebase += 64;
+         * mid-slice exactly like real hardware. Debug: temporarily very
+         * fast to discriminate "slow timer" from "broken wait math". */
+        fc_cpu.timebase += 4096;
 
         /* Spin-loop watchdog: if the same block pc comes back repeatedly,
          * the guest is waiting on something our HLE never provides. */
