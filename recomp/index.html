@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Forecast Channel — native (recompiled PPC)</title>
+<style>
+  body { font-family: monospace; background: #06183a; color: #cfe; padding: 24px; }
+  h1 { font-size: 18px; color: #9cf; }
+  #log { white-space: pre-wrap; background: #02102a; border: 1px solid #17f;
+         padding: 12px; min-height: 200px; font-size: 13px; }
+  button { padding: 10px 18px; font-size: 15px; }
+  .note { font-size: 12px; color: #7a9; margin-top: 14px; max-width: 640px; }
+</style>
+</head>
+<body>
+<h1>Forecast Channel — native execution (recompiled PowerPC → WebAssembly)</h1>
+<p id="recomp-status">idle — press boot to execute the channel binary</p>
+<button id="recomp-boot">Boot channel</button>
+<div class="note">
+  This page executes the real channel executable (0000000d.app, decrypted
+  from the WAD and statically recompiled to WebAssembly with DolRecomp).
+  HLE stubs stand in for Wii hardware. Rendering/audio bridges are staged:
+  the current build runs the boot path and reports progress; GX→WebGL and
+  AX→WebAudio bridges land next.
+</div>
+<script src="channel_recomp.js"></script>
+<script src="recomp_host.js"></script>
+</body>
+</html>
