@@ -144,13 +144,20 @@ static void fc_instruction_fallback(CPUState* cpu, u32 raw, u32 cia) {
             return;
         case 854: /* eieio */ return;
         case 598: /* sync */ return;
+        case 982: /* icbi — cache invalidate, no-op on flat memory */ return;
+        case 254: /* dcbt — prefetch hint */ return;
         default:
             break;
         }
     }
 
-    /* Unknown fallback instruction: log loudly but do NOT kill the guest —
-     * treat as NOP so the channel keeps running; iterate on real breakage. */
+    /* Unknown fallback instruction: log ONCE per unique address (these sit
+     * inside hot loops), then treat as NOP so the guest keeps running. */
+    static u32 seen_addr[64] = {0};
+    static u32 seen_next = 0;
+    for (u32 i = 0; i < seen_next && i < 64; i++)
+        if (seen_addr[i] == cia) return;
+    if (seen_next < 64) seen_addr[seen_next++] = cia;
     EM_ASM({ console.error('[fallback] unhandled insn raw=0x', ($0>>>0).toString(16), 'at 0x', ($1>>>0).toString(16)); }, raw, cia);
 }
 
