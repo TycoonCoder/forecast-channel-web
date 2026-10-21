@@ -27,7 +27,15 @@
 #include <stddef.h>
 
 typedef uint32_t u32; typedef uint16_t u16; typedef uint8_t u8;
-typedef int32_t s32;
+typedef int32_t s32; typedef int16_t s16;
+
+/* ---------------- Shared state (defined in chassis.c) ---------------- */
+#include "cpu/cpu.h"
+extern unsigned char* guest_mem;
+extern CPUState fc_cpu;
+
+/* inline host pointer conversion - defined in chassis.c */
+unsigned char* host_ptr(u32 addr);
 
 /* ---------------- OS (kernel-equivalent) ---------------- */
 u16  OSDisableInterrupts(void);
@@ -46,8 +54,6 @@ s32  OSSendMessage(void* queue, void* msg, u32 flags);
 s32  OSReceiveMessage(void* queue, void** msg, u32 flags);
 
 /* ---------------- GX (render commands -> WebGL) ---------------- */
-/* The channel's draw path submits via the standard GX FIFO. The runtime
- * implements a command processor translating to WebGL calls. */
 void GXBegin(u32 primitive, u32 vtxfmt, u32 count);
 void GXEnd(void);
 void GXSetTevOrder(u32 stage, u32 texmap, u32 texcoord, u32 color);
@@ -55,16 +61,15 @@ void GXSetVtxDesc(u32 attr, u32 type);
 void GXLoadPosMtxImm(const void* matrix, u32 index);
 void GXColor4u8(u8 r, u8 g, u8 b, u8 a);
 void GXPosition3f32(float x, float y, float z);
-void GXPosition2s16(s16 x, s16 y);   /* quantized via GQR0-3 (stage 7) */
+void GXPosition2s16(s16 x, s16 y);
 void GXDrawDone(void);
 void GXCopyDisp(void* framebuffer, u32 clear);
 void GXSetViewport(float x, float y, float w, float h, float zn, float zf);
 
 /* ---------------- AX / AI (audio -> WebAudio) ---------------- */
 void AXInit(void);
-void AXPBAddrInOut(u32 voice, u32 addr);     /* 16 voices, table 0x802f24a0 */
+void AXPBAddrInOut(u32 voice, u32 addr);
 void AIRegisterDMACallback(void (*cb)(void));
-void ai_dma_fill(void);   /* runtime pulls PCM from the DSP buffer */
 
 /* ---------------- VI ---------------- */
 void VIInit(void);
@@ -79,8 +84,8 @@ s32  NANDCreateFile(const char* path, u32 mode, u32 attrs);
 
 /* ---------------- SO / NWC24 (-> fetch to WC24 servers) ---- */
 s32  SOCInit(void);
-s32  SOCinet_ntoa(u32 addr, char* out);      /* simplified SDK signature */
-s32  NWC24Synchronize(void);                 /* forecast.bin download */
+s32  SOCinet_ntoa(u32 addr, char* out);
+s32  NWC24Synchronize(void);
 
 /* ---------------- WPAD / KPAD (-> pointer events) --------- */
 void WPADInit(void);
