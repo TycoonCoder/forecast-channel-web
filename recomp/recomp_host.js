@@ -39,17 +39,16 @@
     if (!gl) throw new Error("WebGL not supported");
     
     // Load shaders for globe
-    const vsSrc = `#version 300 es
-    in vec3 a_pos;
-    in vec2 a_uv;
-    in vec4 a_color;
+    const vsSrc = `attribute vec3 a_pos;
+    attribute vec2 a_uv;
+    attribute vec4 a_color;
     uniform mat4 u_mvp;
     uniform vec3 u_sun;
     uniform float u_time;
-    out vec2 v_uv;
-    out vec4 v_color;
-    out vec3 v_pos;
-    out vec3 v_normal;
+    varying vec2 v_uv;
+    varying vec4 v_color;
+    varying vec3 v_pos;
+    varying vec3 v_normal;
     void main() {
       gl_Position = u_mvp * vec4(a_pos, 1.0);
       v_uv = a_uv;
@@ -58,22 +57,20 @@
       v_normal = a_pos;
     }`;
     
-    const fsSrc = `#version 300 es
-    precision mediump float;
-    in vec2 v_uv;
-    in vec4 v_color;
+    const fsSrc = `precision mediump float;
+    varying vec2 v_uv;
+    varying vec4 v_color;
     uniform sampler2D u_tex;
     uniform vec3 u_sun;
     uniform float u_time;
-    out vec4 out_color;
     void main() {
-      vec4 tex = texture(u_tex, v_uv);
+      vec4 tex = texture2D(u_tex, v_uv);
       float NdotL = max(dot(normalize(v_normal), normalize(u_sun)), 0.0);
       float day = smoothstep(-0.1, 0.2, dot(normalize(v_normal), normalize(u_sun)));
       vec3 day_color = v_color.rgb * tex.rgb * (0.3 + 0.7 * NdotL);
       vec3 night_color = v_color.rgb * tex.rgb * (0.15 + 0.35 * NdotL) + vec3(0.1, 0.15, 0.3) * (1.0 - day);
       vec3 color = mix(night_color, day_color, day);
-      out_color = vec4(color * v_color.a, v_color.a);
+      gl_FragColor = vec4(color * v_color.a, v_color.a);
     }`;
     
     function compileShader(type, src) {
@@ -109,12 +106,15 @@
     const vbo = gl.createBuffer();
     gl.bindVertexArray(vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
-    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 32, 0);
-    gl.enableVertexAttribArray(0);
-    gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 32, 12);
-    gl.enableVertexAttribArray(1);
-    gl.vertexAttribPointer(2, 4, gl.FLOAT, false, 32, 20);
-    gl.enableVertexAttribArray(2);
+    const a_pos = gl.getAttribLocation(prog, "a_pos");
+    const a_uv = gl.getAttribLocation(prog, "a_uv");
+    const a_color = gl.getAttribLocation(prog, "a_color");
+    gl.vertexAttribPointer(a_pos, 3, gl.FLOAT, false, 32, 0);
+    gl.enableVertexAttribArray(a_pos);
+    gl.vertexAttribPointer(a_uv, 2, gl.FLOAT, false, 32, 12);
+    gl.enableVertexAttribArray(a_uv);
+    gl.vertexAttribPointer(a_color, 4, gl.FLOAT, false, 32, 20);
+    gl.enableVertexAttribArray(a_color);
     
     // White texture fallback
     const texWhite = gl.createTexture();
