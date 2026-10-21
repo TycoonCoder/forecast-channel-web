@@ -19,6 +19,10 @@ CPUState fc_cpu;
 
 unsigned char* host_ptr(u32 addr) {
     u32 a = addr & 0x81FFFFFFu;
+    if (a >= MEM1_SIZE) {
+        EM_ASM({ console.error('[host_ptr] OOB:', $0, '->', $1); }, addr, a);
+        return guest_mem; // return base to trap
+    }
     return guest_mem + a;
 }
 
@@ -28,6 +32,7 @@ int load_guest_image(const unsigned char* dol, unsigned len) {
     guest_mem = (unsigned char*)malloc(MEM1_SIZE);
     if (!guest_mem) return -1;
     memset(guest_mem, 0, MEM1_SIZE);
+    EM_ASM({ console.log('[chassis] guest_mem allocated at', $0, 'size', $1); }, (uintptr_t)guest_mem, MEM1_SIZE);
     u32 t_offs[7], t_addrs[7], t_sizes[7];
     u32 d_offs[11], d_addrs[11], d_sizes[11];
     memcpy(t_offs,  dol + 0x00, 28);
@@ -37,9 +42,15 @@ int load_guest_image(const unsigned char* dol, unsigned len) {
     memcpy(t_sizes, dol + 0x90, 28);
     memcpy(d_sizes, dol + 0xAC, 44);
     for (int i = 0; i < 7; i++)
-        if (t_sizes[i]) memcpy(host_ptr(t_addrs[i]), dol + t_offs[i], t_sizes[i]);
+        if (t_sizes[i]) {
+            EM_ASM({ console.log('[load] text', $0, 'addr=0x', $1.toString(16), 'off=0x', $2.toString(16), 'sz=0x', $3.toString(16)); }, i, t_addrs[i], t_offs[i], t_sizes[i]);
+            memcpy(host_ptr(t_addrs[i]), dol + t_offs[i], t_sizes[i]);
+        }
     for (int i = 0; i < 11; i++)
-        if (d_sizes[i]) memcpy(host_ptr(d_addrs[i]), dol + d_offs[i], d_sizes[i]);
+        if (d_sizes[i]) {
+            EM_ASM({ console.log('[load] data', $0, 'addr=0x', $1.toString(16), 'off=0x', $2.toString(16), 'sz=0x', $3.toString(16)); }, i, d_addrs[i], d_offs[i], d_sizes[i]);
+            memcpy(host_ptr(d_addrs[i]), dol + d_offs[i], d_sizes[i]);
+        }
     return 0;
 }
 

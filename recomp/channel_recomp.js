@@ -474,6 +474,53 @@ async function createWasm() {
 
   
 
+  var readEmAsmArgsArray = [];
+  
+  /** @type {!Uint8Array} */
+  var HEAPU8;
+  
+  /** @type {!Int32Array} */
+  var HEAP32;
+  
+  /** @type {!Uint32Array} */
+  var HEAPU32;
+  
+  /** @type {!Float64Array} */
+  var HEAPF64;
+  
+  /** not-@type {!BigInt64Array} */
+  var HEAP64;
+  var readEmAsmArgs = (sigPtr, buf) => {
+      readEmAsmArgsArray.length = 0;
+      var ch;
+      // Most arguments are i32s, so shift the buffer pointer so it is a plain
+      // index into HEAP32.
+      while (ch = HEAPU8[sigPtr++]) {
+        // Floats are always passed as doubles, so all types except for 'i'
+        // are 8 bytes and require alignment.
+        var wide = (ch != 105);
+        wide &= (ch != 112);
+        buf += wide && (buf % 8) ? 4 : 0;
+        readEmAsmArgsArray.push(
+          // Special case for pointers under wasm64 or CAN_ADDRESS_2GB mode.
+          ch == 112 ? HEAPU32[((buf)>>2)] :
+          ch == 106 ? HEAP64[((buf)>>3)] :
+          ch == 105 ?
+            HEAP32[((buf)>>2)] :
+            HEAPF64[((buf)>>3)]
+        );
+        buf += wide ? 8 : 4;
+      }
+      return readEmAsmArgsArray;
+    };
+  var runEmAsmFunction = (code, sigPtr, argbuf) => {
+      var args = readEmAsmArgs(sigPtr, argbuf);
+      return ASM_CONSTS[code](...args);
+    };
+  var _emscripten_asm_const_int = (code, sigPtr, argbuf) => {
+      return runEmAsmFunction(code, sigPtr, argbuf);
+    };
+
   var getHeapMax = () =>
       // Stay one Wasm page short of 4GB: while e.g. Chrome is able to allocate
       // full 4GB Wasm memories, the size will wrap back to 0 bytes in Wasm side
@@ -499,8 +546,6 @@ async function createWasm() {
       // anyhow)
     };
   
-  /** @type {!Uint8Array} */
-  var HEAPU8;
   var _emscripten_resize_heap = (requestedSize) => {
       var oldSize = HEAPU8.length;
       // With CAN_ADDRESS_2GB or MEMORY64, pointers are already unsigned.
@@ -678,8 +723,6 @@ async function createWasm() {
   };
   
   
-  /** @type {!Uint32Array} */
-  var HEAPU32;
   var _fd_write = (fd, iov, iovcnt, pnum) => {
       // hack to support printf in SYSCALLS_REQUIRE_FILESYSTEM=0
       var num = 0;
@@ -861,18 +904,12 @@ async function createWasm() {
   /** @type {!Int16Array} */
   var HEAP16;
   
-  /** @type {!Int32Array} */
-  var HEAP32;
   
   
   /** @type {!Float32Array} */
   var HEAPF32;
   
-  /** @type {!Float64Array} */
-  var HEAPF64;
   
-  /** not-@type {!BigInt64Array} */
-  var HEAP64;
   
     /**
    * @param {number} ptr
@@ -958,6 +995,12 @@ if (Module['printErr']) err = Module['printErr'];
 
 // end include: postlibrary.js
 
+var ASM_CONSTS = {
+  2856: ($0, $1) => { console.error('[host_ptr] OOB:', $0, '->', $1); },  
+ 2908: ($0, $1) => { console.log('[chassis] guest_mem allocated at', $0, 'size', $1); },  
+ 2977: ($0, $1, $2, $3) => { console.log('[load] text', $0, 'addr=0x', $1.toString(16), 'off=0x', $2.toString(16), 'sz=0x', $3.toString(16)); },  
+ 3094: ($0, $1, $2, $3) => { console.log('[load] data', $0, 'addr=0x', $1.toString(16), 'off=0x', $2.toString(16), 'sz=0x', $3.toString(16)); }
+};
 
 // Imports from the Wasm binary.
 var _load_guest_image,
@@ -989,6 +1032,8 @@ function assignWasmExports(wasmExports) {
 }
 
 var wasmImports = {
+  /** @export */
+  emscripten_asm_const_int: _emscripten_asm_const_int,
   /** @export */
   emscripten_resize_heap: _emscripten_resize_heap,
   /** @export */
