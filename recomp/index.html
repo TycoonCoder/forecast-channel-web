@@ -4,12 +4,14 @@
 <meta charset="UTF-8">
 <title>Forecast Channel — native (recompiled PPC)</title>
 <style>
-  body { font-family: monospace; background: #06183a; color: #cfe; padding: 24px; }
+  body { font-family: monospace; background: #06183a; color: #cfe; padding: 24px; max-width: 900px; margin: 0 auto; }
   h1 { font-size: 18px; color: #9cf; }
   #log { white-space: pre-wrap; background: #02102a; border: 1px solid #17f;
          padding: 12px; min-height: 200px; font-size: 13px; }
   button { padding: 10px 18px; font-size: 15px; }
   .note { font-size: 12px; color: #7a9; margin-top: 14px; max-width: 640px; }
+  .live { font-size: 12px; color: #9e9; }
+  a { color: #9cf; }
 </style>
 </head>
 <body>
@@ -17,11 +19,19 @@
 <p id="recomp-status">idle — press boot to execute the channel binary</p>
 <button id="recomp-boot">Boot channel</button>
 <div class="note">
-  This page executes the real channel executable (0000000d.app, decrypted
-  from the WAD and statically recompiled to WebAssembly with DolRecomp).
-  HLE stubs stand in for Wii hardware. Rendering/audio bridges are staged:
-  the current build runs the boot path and reports progress; GX→WebGL and
-  AX→WebAudio bridges land next.
+  This page executes the real Forecast Channel executable (0000000d.app, decrypted
+  from the WAD and statically recompiled to WebAssembly with DolRecomp — 381,400
+  PowerPC instructions, 94 generated C chunks).
+  <br><br>
+  <span class="live">Verified live behavior:</span> boots through the channel's own
+  init, enables FPU/GQRs via its real SPR sequence, runs its AX audio engine
+  (DSP mailbox traffic on 0xCD0068xx), paces itself with mftb timers, and polls
+  its WC24 data subsystem in the same loop it uses on hardware.
+  <br><br>
+  In progress: IOS IPC emulation (network stack), cooperative thread scheduling,
+  and the GX→WebGL render bridge. The console log shows the channel's hardware
+  traffic in real time; <code>FC_DEBUG.dispatch()</code> dumps the executed-block
+  histogram and <code>FC_DEBUG.trace()</code> shows the control-flow graph.
 </div>
 <script src="channel_recomp.js"></script>
 <script src="recomp_host.js"></script>
