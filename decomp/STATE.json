@@ -1,37 +1,46 @@
 {
- "stage": "1-3 complete",
- "binary": "contents/0000000d.app",
- "code_volume": "1,490 KB PPC text (~381,400 instructions)",
- "functions_recovered": 9573,
- "functions_identified": 7,
- "strings_recovered": 1574,
- "string_xrefs": 255,
- "sdk_modules_linked": [
-  "OS",
-  "GX",
-  "AX",
-  "AI",
-  "VI",
-  "SI",
-  "PAD",
-  "WPAD",
-  "KPAD",
-  "EXI",
-  "DVD",
-  "NAND",
-  "SC",
-  "SO",
-  "NWC24",
-  "CNT",
-  "HBM",
-  "NCD",
-  "DSP"
- ],
- "next_stages": [
-  "stage 4: full per-function disassembly corpus (asm/)",
-  "stage 5: prototype recovery (stack-frame analysis) + C translation at scale",
-  "stage 6: HLE runtime: GX->WebGL, AX->WebAudio, NAND->IndexedDB, IOS->syscalls",
-  "stage 7: static recomp to WASM (DolRecomp or custom) + runtime glue",
-  "stage 8: WC24 forecast data via RiiConnect24/WiiLink replacement servers"
- ]
+  "binary": "contents/0000000d.app",
+  "entry": "0x8000403c",
+  "code_volume": "1,490 KB PPC text (~381,400 instructions)",
+  "stages_complete": {
+    "1": "WAD decryption + DOL location + section map",
+    "2": "call graph (9,573 functions, every bl resolved)",
+    "3": "string recovery (1,574) + xrefs (255) + first named symbols",
+    "4": "FULL disassembly corpus: decomp/asm/asm_part1-8.txt (14.6 MB, every instruction)",
+    "5": "prototype recovery: decomp/prototypes.json — arity/params/frame/leaf/return for all 9,573 functions",
+    "5-hand": "boot path fully decompiled to C: __start, __init_hardware, __init_data, __flush_cache, memset, channel_main, context_trampoline, thread_entry (app init + dispatch tables), load_or_create_settings"
+  },
+  "identified_symbols": {
+    "0x800ea948": "OSDisableInterrupts",
+    "0x800ea970": "OSRestoreInterrupts",
+    "0x80004338": "memmove",
+    "0x80004388": "memset",
+    "0x8000443c": "__init_bss (memset wrapper)",
+    "0x80004304": "__flush_cache",
+    "0x800041a8": "__start (GPR/SP/SDA init)",
+    "0x800042e0": "__init_hardware (FPU enable)",
+    "0x80004238": "__init_data (data copy + BSS)",
+    "0x8000403c": "channel_main (entry)",
+    "0x801783f8": "context_trampoline (thread bootstrap)",
+    "0x80178a0c": "thread_entry (app init, launch-mode dispatch)",
+    "0x80178714": "load_or_create_settings (NAND)",
+    "0x801619c4": "__savegpr27_31",
+    "0x80161a10": "__restgpr27_31",
+    "0x8016184c": "__virtual_dispatch (C++ vtable thunk)"
+  },
+  "architecture_findings": [
+    "C++ (nw4r framework): virtual dispatch thunks, 29-piece globe model",
+    "two launch-mode handler tables at 0x801d6dc0 (mode 2 vs mode 1) — the channel behaves differently when re-entered from another channel",
+    "message-queue driven main loop (three queues at 0x80198c18)",
+    "thread pair: app thread + context twin at 0x80178490",
+    "NAND settings file with create-if-missing fallback",
+    "19 statically linked RVL SDK modules: OS GX AX AI VI SI PAD WPAD KPAD EXI DVD NAND SC SO NWC24 CNT HBM NCD DSP",
+    "MWCC runtime: Metrowerks register spill helpers, SDA-relative globals"
+  ],
+  "next_stages": [
+    "stage 6: decompile the 9 dispatch handlers (0x80178C68-CA8 / E00-EE8) — the channel's actual event logic",
+    "stage 7: GX command-level analysis of the render path (locate GXPoke* / vertex loads)",
+    "stage 8: HLE runtime (GX->WebGL, AX->WebAudio, NAND->IndexedDB, IOS) + WASM recomp",
+    "stage 9: WC24 forecast protocol against RiiConnect24/WiiLink servers"
+  ]
 }
