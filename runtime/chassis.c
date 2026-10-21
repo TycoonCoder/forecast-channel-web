@@ -15,6 +15,7 @@
 #include <emscripten.h>
 
 #define MEM1_SIZE  0x8200000u   /* 24MB + guard, cached+uncached alias */
+#define FC_MSR_FP  (1u << 18)   /* PPC MSR bit 18: floating-point available */
 unsigned char *guest_mem;
 CPUState fc_cpu;
 
@@ -64,21 +65,58 @@ int load_guest_image(const unsigned char* dol, unsigned len) {
     return 0;
 }
 
+/* ---- CPU hooks: permissive SPR access + exception diagnostics ---- */
+static u32 fc_spr_read(CPUState* cpu, u16 spr, u32 cia) {
+    (void)cpu; (void)cia;
+    /* Unknown/unimplemented SPRs read as 0 — matches Wii hardware behavior
+     * for registers the channel never meaningfully uses. */
+    EM_ASM({ console.log('[spr] read  spr=', $0); }, spr);
+    return 0;
+}
+
+static void fc_spr_write(CPUState* cpu, u16 spr, u32 value, u32 cia) {
+    (void)cpu; (void)value; (void)cia;
+    /* Swallow writes to unimplemented SPRs (HID0 etc.) like real
+     * Broadway would for our purposes. */
+    EM_ASM({ console.log('[spr] write spr=', $0, 'val=0x', ($1>>>0).toString(16)); }, spr, value);
+}
+
+static void fc_instruction_fallback(CPUState* cpu, u32 raw, u32 cia) {
+    EM_ASM({ console.error('[fallback] illegal insn raw=0x', ($0>>>0).toString(16), 'at 0x', ($1>>>0).toString(16)); }, raw, cia);
+    ppc_program_exception(cpu, PPC_PROGRAM_ILLEGAL, cia);
+}
+
+static void fc_cache_control(CPUState* cpu, u8 op, u32 ea, u32 cia) {
+    /* dcbst/dcbf/dcbi/icbi are no-ops on a flat memory model. */
+    (void)cpu; (void)op; (void)ea; (void)cia;
+}
+
 /* ---- main guest loop (called from JS every frame via requestAnimationFrame) ---- */
 int fc_boot(const unsigned char* dol, unsigned len) {
     if (load_guest_image(dol, len)) return -1;
     memset(&fc_cpu, 0, sizeof(fc_cpu));
-    
-    /* Initialize DolRecomp CPU state - it manages its own RAM pointer */
+
+    /* Allocate DolRecomp's own RAM, then point it at the loaded image.
+     * cpu_init memsets the state and allocates RAM; we then swap in our
+     * guest_mem (which already contains the loaded DOL image) and free
+     * cpu_init's allocation to avoid double memory. */
     if (!cpu_init(&fc_cpu)) {
         EM_ASM({ console.error('[fc_boot] cpu_init failed'); });
         return -1;
     }
-    
-    /* Point DolRecomp's RAM to our guest memory */
-    fc_cpu.ram = guest_mem;
-    fc_cpu.ram_size = MEM1_SIZE;
-    
+    unsigned char* init_ram = fc_cpu.ram;
+    fc_cpu.ram = guest_mem;          /* 24MB+ MEM1 image already loaded */
+    fc_cpu.ram_size = GC_MAIN_RAM_SIZE; /* 24MB — matches GC_RAM_BASE window */
+    free(init_ram);
+
+    /* The Wii BIOS hands the channel over with FP enabled and all hooks live.
+     * cpu_init zeroed MSR (FPU disabled) and every callback — restore both. */
+    fc_cpu.msr |= FC_MSR_FP;          /* FPU usable (channel uses FPU immediately) */
+    fc_cpu.spr_read  = fc_spr_read;
+    fc_cpu.spr_write = fc_spr_write;
+    fc_cpu.instruction_fallback = fc_instruction_fallback;
+    fc_cpu.cache_control = fc_cache_control;
+
     fc_cpu.pc = DOLRECOMP_ENTRY_POINT;      /* 0x8000403C */
     fc_cpu.gpr[1] = 0x803437A8;             /* SP from stage 5      */
     fc_cpu.gpr[2] = 0x80339900;             /* SDA2                 */
@@ -88,7 +126,17 @@ int fc_boot(const unsigned char* dol, unsigned len) {
 
 /* run up to N blocks; returns 0 when the guest halted (exception/exit) */
 int fc_step(u32 max_blocks) {
-    return dolrecomp_run_blocks(&fc_cpu, max_blocks);
+    int alive = dolrecomp_run_blocks(&fc_cpu, max_blocks);
+    if (alive == 0) {
+        EM_ASM({
+            console.error('[fc_step] guest halted:',
+                'pc=0x', ($0>>>0).toString(16),
+                'exception=0x', ($1>>>0).toString(16),
+                'prog_exc=0x', ($2>>>0).toString(16),
+                'dar=0x', ($3>>>0).toString(16));
+        }, fc_cpu.pc, fc_cpu.exception, fc_cpu.program_exception, fc_cpu.dar);
+    }
+    return alive;
 }
 
 /* ---- HLE surface is entirely implemented in hle_impl.c (strong defs) ---- */

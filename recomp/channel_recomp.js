@@ -999,15 +999,19 @@ var ASM_CONSTS = {
   2904: ($0, $1) => { console.log('[chassis] guest_mem allocated at', $0, 'size', $1); },  
  2973: ($0, $1, $2, $3) => { console.log('[load] text', $0, 'addr=0x', $1.toString(16), 'off=0x', $2.toString(16), 'sz=0x', $3.toString(16)); },  
  3090: ($0, $1, $2, $3) => { console.log('[load] data', $0, 'addr=0x', $1.toString(16), 'off=0x', $2.toString(16), 'sz=0x', $3.toString(16)); },  
- 3207: () => { console.error('[fc_boot] cpu_init failed'); }
+ 3207: () => { console.error('[fc_boot] cpu_init failed'); },  
+ 3255: ($0, $1, $2, $3) => { console.error('[fc_step] guest halted:', 'pc=0x', ($0>>>0).toString(16), 'exception=0x', ($1>>>0).toString(16), 'prog_exc=0x', ($2>>>0).toString(16), 'dar=0x', ($3>>>0).toString(16)); },  
+ 3443: ($0) => { console.log('[spr] read  spr=', $0); },  
+ 3484: ($0, $1) => { console.log('[spr] write spr=', $0, 'val=0x', ($1>>>0).toString(16)); },  
+ 3558: ($0, $1) => { console.error('[fallback] illegal insn raw=0x', ($0>>>0).toString(16), 'at 0x', ($1>>>0).toString(16)); }
 };
 
 // Imports from the Wasm binary.
 var _load_guest_image,
   _malloc,
   _fc_boot,
-  _fc_step,
   _free,
+  _fc_step,
   _setThrew,
   __emscripten_stack_restore,
   __emscripten_stack_alloc,
@@ -1021,8 +1025,8 @@ function assignWasmExports(wasmExports) {
   _load_guest_image = Module['_load_guest_image'] = wasmExports['load_guest_image'];
   _malloc = Module['_malloc'] = wasmExports['malloc'];
   _fc_boot = Module['_fc_boot'] = wasmExports['fc_boot'];
-  _fc_step = Module['_fc_step'] = wasmExports['fc_step'];
   _free = Module['_free'] = wasmExports['free'];
+  _fc_step = Module['_fc_step'] = wasmExports['fc_step'];
   _setThrew = wasmExports['setThrew'];
   __emscripten_stack_restore = wasmExports['_emscripten_stack_restore'];
   __emscripten_stack_alloc = wasmExports['_emscripten_stack_alloc'];
