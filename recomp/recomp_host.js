@@ -330,8 +330,17 @@
       const dt = (now - lastTime) / 1000;
       lastTime = now;
       
+      console.log('[frame] calling fc_step', FRAME_BLOCKS);
       // run a slice of recompiled blocks
-      const alive = Module._fc_step(FRAME_BLOCKS);
+      let alive = 0;
+      try {
+        alive = Module._fc_step(FRAME_BLOCKS);
+        console.log('[frame] fc_step returned', alive);
+      } catch(e) {
+        console.error('[frame] fc_step threw:', e);
+        running = false;
+        return;
+      }
       steps++;
       if (steps % 60 === 0) {
         status(`running — ${(steps*FRAME_BLOCKS/1000).toFixed(0)}k blocks executed`);
@@ -349,6 +358,7 @@
       
       requestAnimationFrame(frame);
     }
+    console.log('[frame] starting animation loop');
     requestAnimationFrame(frame);
   }
 
