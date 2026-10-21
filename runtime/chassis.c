@@ -277,8 +277,6 @@ u32 fc_get_last_pc(void) { return fc_last_dispatch_pc; }
 #define FC_SPIN_WINDOW 262144u  /* very lenient: legit SDK polling loops revisit pcs */
 
 int fc_step(u32 max_blocks) {
-    fc_cpu.timebase += FC_TB_PER_STEP;
-
     u32 blocks = 0;
     u32 spin_repeats = 0;
     u32 last_pc = 0;
@@ -302,6 +300,13 @@ int fc_step(u32 max_blocks) {
             return 0;
         }
         blocks++;
+
+        /* Advance the guest timebase WITH the block stream so mftb-based
+         * waits (the channel paces init/render in 100ms ticks) complete
+         * mid-slice exactly like real hardware. ~64 TB ticks per block
+         * approximates Broadway's TB/bus ratio for our block sizes:
+         * 20000 blocks ≈ 21ms of guest time ≈ one 60Hz slice. */
+        fc_cpu.timebase += 64;
 
         /* Spin-loop watchdog: if the same block pc comes back repeatedly,
          * the guest is waiting on something our HLE never provides. */
