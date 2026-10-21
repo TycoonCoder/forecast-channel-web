@@ -385,7 +385,22 @@
         for (const [pc, n] of sorted.slice(0, 20)) console.log(' ', pc, n);
         return sorted;
       },
-      steps: () => steps
+      steps: () => steps,
+      // Full dispatch-pc histogram from the C side
+      dispatch: () => {
+        if (!Module._fc_hist_count) return 'n/a';
+        const n = Module._fc_hist_count();
+        const out = [];
+        for (let i = 0; i < n; i++) {
+          const pc = Module._fc_hist_pc_at(i) >>> 0;
+          const cnt = Module._fc_hist_n_at(i);
+          out.push([pc, cnt]);
+        }
+        out.sort((a,b) => b[1]-a[1]);
+        console.log('dispatch-pc histogram (top 30):');
+        for (const [pc, cnt] of out.slice(0, 30)) console.log(' ', '0x'+pc.toString(16), cnt);
+        return out;
+      }
     };
   }
 
