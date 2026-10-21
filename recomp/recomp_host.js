@@ -326,6 +326,7 @@
     let steps = 0;
     const FRAME_BLOCKS = 20000;
     function frame(now) {
+      console.log('[frame] callback at', now);
       if (!running) return;
       const dt = (now - lastTime) / 1000;
       lastTime = now;
