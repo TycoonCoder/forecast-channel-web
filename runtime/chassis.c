@@ -185,7 +185,7 @@ static u64 fc_external_read(CPUState* cpu, u32 ea, u8 size) {
     (void)cpu; (void)size;
     static u32 logged = 0;
     if (logged < 40) {
-        EM_ASM({ console.log('[mmio] read', $0 ? '32' : '8', ' 0x', ($1>>>0).toString(16)); }, size == 32, ea);
+        EM_ASM({ console.log('[mmio] read', $0, ' 0x', ($1>>>0).toString(16)); }, (u32)size, ea);
         logged++;
     }
     /* DSP DMA status at 0xCD00680C: bit0 = busy → 0 means transfer done.
@@ -197,7 +197,7 @@ static void fc_external_write(CPUState* cpu, u32 ea, u64 value, u8 size) {
     (void)cpu; (void)value; (void)size;
     static u32 logged = 0;
     if (logged < 40) {
-        EM_ASM({ console.log('[mmio] write 0x', ($0>>>0).toString(16), ' ← 0x', ($1>>>0).toString(16)); }, ea, value);
+        EM_ASM({ console.log('[mmio] write 0x', ($0>>>0).toString(16), ' ← 0x', ($1>>>0).toString(16)); }, ea, (u32)value);
         logged++;
     }
 }
