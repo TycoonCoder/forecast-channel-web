@@ -324,8 +324,9 @@
     running = true;
 
     let steps = 0;
-      const FRAME_BLOCKS = 20000;
-      function frame(now) {
+    const FRAME_BLOCKS = 20000;
+    const pcHistogram = {};
+    function frame(now) {
         // setTimeout doesn't pass timestamp; use performance.now() as fallback
         now = now || performance.now();
         console.log('[frame] callback at', now);
@@ -338,6 +339,12 @@
       let alive = 0;
       try {
         alive = Module._fc_step(FRAME_BLOCKS);
+        // Sample guest pc for the histogram (post-slice)
+        if (Module._fc_get_pc) {
+          const pc = Module._fc_get_pc() >>> 0;
+          const key = '0x' + pc.toString(16);
+          pcHistogram[key] = (pcHistogram[key] || 0) + 1;
+        }
       } catch(e) {
         console.error('[frame] fc_step threw:', e && e.message ? e.message : String(e));
         running = false;
@@ -370,6 +377,16 @@
     }
     console.log('[frame] starting animation loop');
     scheduleFrame();
+    // Expose the histogram + status for debugging from the console
+    window.FC_DEBUG = {
+      histogram: () => {
+        const sorted = Object.entries(pcHistogram).sort((a,b) => b[1]-a[1]);
+        console.log('pc histogram (top 20):');
+        for (const [pc, n] of sorted.slice(0, 20)) console.log(' ', pc, n);
+        return sorted;
+      },
+      steps: () => steps
+    };
   }
 
   // Wait for DOM and Module factory

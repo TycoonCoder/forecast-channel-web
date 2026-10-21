@@ -18,6 +18,7 @@
 #define FC_MSR_FP  (1u << 18)   /* PPC MSR bit 18: floating-point available */
 unsigned char *guest_mem;
 CPUState fc_cpu;
+static u32 fc_last_dispatch_pc;   /* last block address handed to the dispatcher */
 
 /* Big-endian to host (little-endian) conversion */
 static inline u32 be32(const unsigned char* p) {
@@ -183,10 +184,15 @@ static void fc_cache_control(CPUState* cpu, u8 op, u32 ea, u32 cia) {
  * semantics the channel needs: reads report idle/done, writes sink. */
 static u64 fc_external_read(CPUState* cpu, u32 ea, u8 size) {
     (void)cpu; (void)size;
-    static u32 logged = 0;
-    if (logged < 40) {
-        EM_ASM({ console.log('[mmio] read', $0, ' 0x', ($1>>>0).toString(16)); }, (u32)size, ea);
-        logged++;
+    /* Log each unique address once so we see the full hardware surface
+     * without spam (reads sit in hot polling loops). */
+    static u32 seen[128] = {0};
+    static u32 seen_n = 0;
+    bool fresh = true;
+    for (u32 i = 0; i < seen_n; i++) if (seen[i] == ea) { fresh = false; break; }
+    if (fresh && seen_n < 128) {
+        seen[seen_n++] = ea;
+        EM_ASM({ console.log('[mmio] R 0x', ($0>>>0).toString(16)); }, ea);
     }
     /* DSP DMA status at 0xCD00680C: bit0 = busy → 0 means transfer done.
      * Everything else reads idle/absent. */
@@ -194,11 +200,14 @@ static u64 fc_external_read(CPUState* cpu, u32 ea, u8 size) {
 }
 
 static void fc_external_write(CPUState* cpu, u32 ea, u64 value, u8 size) {
-    (void)cpu; (void)value; (void)size;
-    static u32 logged = 0;
-    if (logged < 40) {
-        EM_ASM({ console.log('[mmio] write 0x', ($0>>>0).toString(16), ' ← 0x', ($1>>>0).toString(16)); }, ea, (u32)value);
-        logged++;
+    (void)cpu; (void)size;
+    static u32 seen[128] = {0};
+    static u32 seen_n = 0;
+    bool fresh = true;
+    for (u32 i = 0; i < seen_n; i++) if (seen[i] == ea) { fresh = false; break; }
+    if (fresh && seen_n < 128) {
+        seen[seen_n++] = ea;
+        EM_ASM({ console.log('[mmio] W 0x', ($0>>>0).toString(16), ' ← 0x', ($1>>>0).toString(16)); }, ea, (u32)value);
     }
 }
 
@@ -258,6 +267,10 @@ int fc_boot(const unsigned char* dol, unsigned len) {
     return 0;
 }
 
+/* ---- diagnostics for JS ---- */
+u32 fc_get_pc(void) { return fc_cpu.pc; }
+u32 fc_get_last_pc(void) { return fc_last_dispatch_pc; }
+
 /* run up to N blocks; returns 0 when the guest halted (exception/exit).
  * Custom loop over dolrecomp_call (instead of dolrecomp_run_blocks) so we can
  * watch pc per-block, detect spin loops, and keep the browser responsive. */
@@ -271,6 +284,7 @@ int fc_step(u32 max_blocks) {
     u32 last_pc = 0;
 
     while (blocks < max_blocks) {
+        fc_last_dispatch_pc = fc_cpu.pc;
         if (!dolrecomp_call(&fc_cpu, fc_cpu.pc)) {
             EM_ASM({
                 console.error('[fc_step] dispatch failed at pc=0x', ($0>>>0).toString(16));

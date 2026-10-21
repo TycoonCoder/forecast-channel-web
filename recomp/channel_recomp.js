@@ -1008,8 +1008,8 @@ var ASM_CONSTS = {
  3758: ($0, $1) => { console.log('[fallback] mfspr r', $0, ',', $1, ' → 0'); },  
  3820: ($0, $1, $2) => { console.log('[fallback] mtspr', $0, ', r', $1, '=0x', ($2>>>0).toString(16)); },  
  3902: ($0, $1) => { console.error('[fallback] unhandled insn raw=0x', ($0>>>0).toString(16), 'at 0x', ($1>>>0).toString(16)); },  
- 4012: ($0, $1) => { console.log('[mmio] read', $0, ' 0x', ($1>>>0).toString(16)); },  
- 4078: ($0, $1) => { console.log('[mmio] write 0x', ($0>>>0).toString(16), ' ← 0x', ($1>>>0).toString(16)); }
+ 4012: ($0) => { console.log('[mmio] R 0x', ($0>>>0).toString(16)); },  
+ 4067: ($0, $1) => { console.log('[mmio] W 0x', ($0>>>0).toString(16), ' ← 0x', ($1>>>0).toString(16)); }
 };
 
 // Imports from the Wasm binary.
@@ -1017,6 +1017,8 @@ var _load_guest_image,
   _malloc,
   _fc_boot,
   _free,
+  _fc_get_pc,
+  _fc_get_last_pc,
   _fc_step,
   _setThrew,
   __emscripten_stack_restore,
@@ -1032,6 +1034,8 @@ function assignWasmExports(wasmExports) {
   _malloc = Module['_malloc'] = wasmExports['malloc'];
   _fc_boot = Module['_fc_boot'] = wasmExports['fc_boot'];
   _free = Module['_free'] = wasmExports['free'];
+  _fc_get_pc = Module['_fc_get_pc'] = wasmExports['fc_get_pc'];
+  _fc_get_last_pc = Module['_fc_get_last_pc'] = wasmExports['fc_get_last_pc'];
   _fc_step = Module['_fc_step'] = wasmExports['fc_step'];
   _setThrew = wasmExports['setThrew'];
   __emscripten_stack_restore = wasmExports['_emscripten_stack_restore'];
