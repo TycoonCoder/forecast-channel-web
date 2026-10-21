@@ -996,20 +996,20 @@ if (Module['printErr']) err = Module['printErr'];
 // end include: postlibrary.js
 
 var ASM_CONSTS = {
-  2912: ($0, $1) => { console.log('[chassis] guest_mem allocated at', $0, 'size', $1); },  
- 2981: ($0, $1, $2, $3) => { console.log('[load] text', $0, 'addr=0x', $1.toString(16), 'off=0x', $2.toString(16), 'sz=0x', $3.toString(16)); },  
- 3098: ($0, $1, $2, $3) => { console.log('[load] data', $0, 'addr=0x', $1.toString(16), 'off=0x', $2.toString(16), 'sz=0x', $3.toString(16)); },  
- 3215: () => { console.error('[fc_boot] cpu_init failed'); },  
- 3263: ($0) => { console.error('[fc_step] dispatch failed at pc=0x', ($0>>>0).toString(16)); },  
- 3343: ($0, $1, $2, $3) => { console.error('[fc_step] guest halted:', 'pc=0x', ($0>>>0).toString(16), 'exception=0x', ($1>>>0).toString(16), 'prog_exc=0x', ($2>>>0).toString(16), 'dar=0x', ($3>>>0).toString(16)); },  
- 3531: ($0) => { console.warn('[fc_step] spin suspected at pc=0x', ($0>>>0).toString(16), '— likely HLE-blocked; breaking slice'); },  
- 3651: ($0) => { console.log('[spr] read  spr=', $0); },  
- 3692: ($0, $1) => { console.log('[spr] write spr=', $0, 'val=0x', ($1>>>0).toString(16)); },  
- 3766: ($0, $1) => { console.log('[fallback] mfspr r', $0, ',', $1, ' → 0'); },  
- 3828: ($0, $1, $2) => { console.log('[fallback] mtspr', $0, ', r', $1, '=0x', ($2>>>0).toString(16)); },  
- 3910: ($0, $1) => { console.error('[fallback] unhandled insn raw=0x', ($0>>>0).toString(16), 'at 0x', ($1>>>0).toString(16)); },  
- 4020: ($0) => { console.log('[mmio] R 0x', ($0>>>0).toString(16)); },  
- 4075: ($0, $1) => { console.log('[mmio] W 0x', ($0>>>0).toString(16), ' ← 0x', ($1>>>0).toString(16)); }
+  2928: ($0, $1) => { console.log('[chassis] guest_mem allocated at', $0, 'size', $1); },  
+ 2997: ($0, $1, $2, $3) => { console.log('[load] text', $0, 'addr=0x', $1.toString(16), 'off=0x', $2.toString(16), 'sz=0x', $3.toString(16)); },  
+ 3114: ($0, $1, $2, $3) => { console.log('[load] data', $0, 'addr=0x', $1.toString(16), 'off=0x', $2.toString(16), 'sz=0x', $3.toString(16)); },  
+ 3231: () => { console.error('[fc_boot] cpu_init failed'); },  
+ 3279: ($0) => { console.error('[fc_step] dispatch failed at pc=0x', ($0>>>0).toString(16)); },  
+ 3359: ($0, $1, $2, $3) => { console.error('[fc_step] guest halted:', 'pc=0x', ($0>>>0).toString(16), 'exception=0x', ($1>>>0).toString(16), 'prog_exc=0x', ($2>>>0).toString(16), 'dar=0x', ($3>>>0).toString(16)); },  
+ 3547: ($0) => { console.warn('[fc_step] spin suspected at pc=0x', ($0>>>0).toString(16), '— likely HLE-blocked; breaking slice'); },  
+ 3667: ($0) => { console.log('[spr] read  spr=', $0); },  
+ 3708: ($0, $1) => { console.log('[spr] write spr=', $0, 'val=0x', ($1>>>0).toString(16)); },  
+ 3782: ($0, $1) => { console.log('[fallback] mfspr r', $0, ',', $1, ' → 0'); },  
+ 3844: ($0, $1, $2) => { console.log('[fallback] mtspr', $0, ', r', $1, '=0x', ($2>>>0).toString(16)); },  
+ 3926: ($0, $1) => { console.error('[fallback] unhandled insn raw=0x', ($0>>>0).toString(16), 'at 0x', ($1>>>0).toString(16)); },  
+ 4036: ($0) => { console.log('[mmio] R 0x', ($0>>>0).toString(16)); },  
+ 4091: ($0, $1) => { console.log('[mmio] W 0x', ($0>>>0).toString(16), ' ← 0x', ($1>>>0).toString(16)); }
 };
 
 // Imports from the Wasm binary.

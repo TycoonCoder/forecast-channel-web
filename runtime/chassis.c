@@ -199,6 +199,10 @@ static u64 fc_external_read(CPUState* cpu, u32 ea, u8 size) {
     /* Address-aware responses (see header comment above) */
     if (ea == 0xCC00500Au) return 0x20u;   /* PI status: bit5 set = ready */
     if (ea == 0xCC005000u) return 0x46u;   /* PI: standard config */
+    if (ea == 0xCC005004u) return 0x8000u; /* PI interrupt flag: bit15 set =
+                                              "reset complete" — the channel
+                                              polls this until set at
+                                              0x800e576c (GX init) */
     return 0;
 }
 
