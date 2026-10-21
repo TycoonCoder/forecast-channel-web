@@ -8,7 +8,9 @@
     "3": "string recovery (1,574) + xrefs (255) + first named symbols",
     "4": "FULL disassembly corpus: decomp/asm/asm_part1-8.txt (14.6 MB, every instruction)",
     "5": "prototype recovery: decomp/prototypes.json — arity/params/frame/leaf/return for all 9,573 functions",
-    "5-hand": "boot path fully decompiled to C: __start, __init_hardware, __init_data, __flush_cache, memset, channel_main, context_trampoline, thread_entry (app init + dispatch tables), load_or_create_settings"
+    "5-hand": "boot path fully decompiled to C: __start, __init_hardware, __init_data, __flush_cache, memset, channel_main, context_trampoline, thread_entry, load_or_create_settings",
+    "6": "dispatch architecture decoded: thread_entry(0) = six queues + return (normal start); thread_entry(1) = WC24 handler table (returning path); dormant stub personality documented; WC24 -10005 error gate identified",
+    "7": "SDK subsystem anchors: audio_hw_init (AI DMA 0xCD0000C0, 16-voice mixer table), spawn_worker_thread (OSCreateThread priority 1), app_state_validate (0x14-byte state records, region 3/0xF branches, shutdown codes 0x01234567/8/9), GQR quantization init (mtspr 0x392-0x395)"
   },
   "identified_symbols": {
     "0x800ea948": "OSDisableInterrupts",
