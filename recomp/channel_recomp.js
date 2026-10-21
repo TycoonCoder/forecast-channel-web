@@ -1003,7 +1003,9 @@ var ASM_CONSTS = {
  3255: ($0, $1, $2, $3) => { console.error('[fc_step] guest halted:', 'pc=0x', ($0>>>0).toString(16), 'exception=0x', ($1>>>0).toString(16), 'prog_exc=0x', ($2>>>0).toString(16), 'dar=0x', ($3>>>0).toString(16)); },  
  3443: ($0) => { console.log('[spr] read  spr=', $0); },  
  3484: ($0, $1) => { console.log('[spr] write spr=', $0, 'val=0x', ($1>>>0).toString(16)); },  
- 3558: ($0, $1) => { console.error('[fallback] illegal insn raw=0x', ($0>>>0).toString(16), 'at 0x', ($1>>>0).toString(16)); }
+ 3558: ($0, $1) => { console.log('[fallback] mfspr r', $0, ',', $1, ' → 0'); },  
+ 3620: ($0, $1, $2) => { console.log('[fallback] mtspr', $0, ', r', $1, '=0x', ($2>>>0).toString(16)); },  
+ 3702: ($0, $1) => { console.error('[fallback] unhandled insn raw=0x', ($0>>>0).toString(16), 'at 0x', ($1>>>0).toString(16)); }
 };
 
 // Imports from the Wasm binary.

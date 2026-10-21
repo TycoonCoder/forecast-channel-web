@@ -65,25 +65,86 @@ int load_guest_image(const unsigned char* dol, unsigned len) {
     return 0;
 }
 
-/* ---- CPU hooks: permissive SPR access + exception diagnostics ---- */
-static u32 fc_spr_read(CPUState* cpu, u16 spr, u32 cia) {
-    (void)cpu; (void)cia;
-    /* Unknown/unimplemented SPRs read as 0 — matches Wii hardware behavior
-     * for registers the channel never meaningfully uses. */
+/* ---- CPU hooks: permissive SPR access + instruction fallback ---- */
+
+/* Mini timebase: Broadway TB ticks at ~60.75MHz; we advance per step slice. */
+static u64 fc_tb_ticks;
+#define FC_TB_PER_STEP 1012500u   /* ≈ 1/60s of ticks per fc_step slice */
+
+static u32 fc_spr_read_hook(CPUState* cpu, u16 spr, u32 cia) {
+    (void)cia;
+    /* Runtime-called SPRs that cleared ppc_spr_access. Read as 0 — matches
+     * unimplemented-register behavior for the channel's purposes. */
     EM_ASM({ console.log('[spr] read  spr=', $0); }, spr);
+    (void)cpu;
     return 0;
 }
 
-static void fc_spr_write(CPUState* cpu, u16 spr, u32 value, u32 cia) {
+static void fc_spr_write_hook(CPUState* cpu, u16 spr, u32 value, u32 cia) {
     (void)cpu; (void)value; (void)cia;
-    /* Swallow writes to unimplemented SPRs (HID0 etc.) like real
-     * Broadway would for our purposes. */
     EM_ASM({ console.log('[spr] write spr=', $0, 'val=0x', ($1>>>0).toString(16)); }, spr, value);
 }
 
+/* Fallback interpreter for instructions DolRecomp could not statically decode.
+ * The generated code calls this instead of raising an illegal-instruction
+ * exception; we emulate the common X-form system ops here.
+ *
+ * PPC mfspr/mtspr encoding note: the SPR number is split across the
+ * instruction fields with the LOW 5 bits in bits 16-20 and the HIGH 5 bits
+ * in bits 11-15 (verified against the corpus: mfspr r0,0x396 = 0x7c16e2a6
+ * has rA-field=22, rB-field=28 → (28<<5)|22 = 918 = 0x396). */
 static void fc_instruction_fallback(CPUState* cpu, u32 raw, u32 cia) {
-    EM_ASM({ console.error('[fallback] illegal insn raw=0x', ($0>>>0).toString(16), 'at 0x', ($1>>>0).toString(16)); }, raw, cia);
-    ppc_program_exception(cpu, PPC_PROGRAM_ILLEGAL, cia);
+    u32 opcode = raw >> 26;
+    u32 ext = (raw >> 1) & 0x3FF;
+
+    if (opcode == 31) {
+        u32 rd_rs = (raw >> 21) & 0x1F;
+        u32 spr = (((raw >> 11) & 0x1F) << 5) | ((raw >> 16) & 0x1F);
+
+        switch (ext) {
+        case 339: /* mfspr rD, spr */
+            if (spr == 1008 || spr == 1009) {
+                /* HID0/HID1: report caches enabled, everything else off. */
+                cpu->gpr[rd_rs] = (spr == 1008) ? 0x0011C000u : 0x80000000u;
+            } else if (spr == 920) {
+                cpu->gpr[rd_rs] = cpu->hid2;
+            } else if (spr >= 912 && spr <= 919) {
+                cpu->gpr[rd_rs] = cpu->gqr[spr - 912];
+            } else if (spr == 22) {
+                cpu->gpr[rd_rs] = 0; /* DEC */
+            } else if (spr == 268 || spr == 269) {
+                /* TBL/TBU direct SPR-style read */
+                cpu->gpr[rd_rs] = (spr == 268) ? (u32)cpu->timebase
+                                              : (u32)(cpu->timebase >> 32);
+            } else {
+                EM_ASM({ console.log('[fallback] mfspr r', $0, ',', $1, ' → 0'); }, rd_rs, spr);
+                cpu->gpr[rd_rs] = 0;
+            }
+            return;
+        case 467: /* mtspr spr, rS */
+            if (spr == 920) {
+                cpu->hid2 = cpu->gpr[rd_rs];
+            } else if (spr >= 912 && spr <= 919) {
+                cpu->gqr[spr - 912] = cpu->gpr[rd_rs];
+            } else {
+                EM_ASM({ console.log('[fallback] mtspr', $0, ', r', $1, '=0x', ($2>>>0).toString(16)); }, spr, rd_rs, cpu->gpr[rd_rs]);
+            }
+            return;
+        case 371: /* mftb rD, tbr */
+            if (spr == 268) cpu->gpr[rd_rs] = (u32)cpu->timebase;
+            else if (spr == 269) cpu->gpr[rd_rs] = (u32)(cpu->timebase >> 32);
+            else cpu->gpr[rd_rs] = 0;
+            return;
+        case 854: /* eieio */ return;
+        case 598: /* sync */ return;
+        default:
+            break;
+        }
+    }
+
+    /* Unknown fallback instruction: log loudly but do NOT kill the guest —
+     * treat as NOP so the channel keeps running; iterate on real breakage. */
+    EM_ASM({ console.error('[fallback] unhandled insn raw=0x', ($0>>>0).toString(16), 'at 0x', ($1>>>0).toString(16)); }, raw, cia);
 }
 
 static void fc_cache_control(CPUState* cpu, u8 op, u32 ea, u32 cia) {
@@ -112,8 +173,8 @@ int fc_boot(const unsigned char* dol, unsigned len) {
     /* The Wii BIOS hands the channel over with FP enabled and all hooks live.
      * cpu_init zeroed MSR (FPU disabled) and every callback — restore both. */
     fc_cpu.msr |= FC_MSR_FP;          /* FPU usable (channel uses FPU immediately) */
-    fc_cpu.spr_read  = fc_spr_read;
-    fc_cpu.spr_write = fc_spr_write;
+    fc_cpu.spr_read  = fc_spr_read_hook;
+    fc_cpu.spr_write = fc_spr_write_hook;
     fc_cpu.instruction_fallback = fc_instruction_fallback;
     fc_cpu.cache_control = fc_cache_control;
 
@@ -126,6 +187,8 @@ int fc_boot(const unsigned char* dol, unsigned len) {
 
 /* run up to N blocks; returns 0 when the guest halted (exception/exit) */
 int fc_step(u32 max_blocks) {
+    /* Advance the guest timebase so mftb/OSGetTime progress each slice. */
+    fc_cpu.timebase += FC_TB_PER_STEP;
     int alive = dolrecomp_run_blocks(&fc_cpu, max_blocks);
     if (alive == 0) {
         EM_ASM({
