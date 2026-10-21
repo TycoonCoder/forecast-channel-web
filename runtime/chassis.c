@@ -185,21 +185,56 @@ int fc_boot(const unsigned char* dol, unsigned len) {
     return 0;
 }
 
-/* run up to N blocks; returns 0 when the guest halted (exception/exit) */
+/* run up to N blocks; returns 0 when the guest halted (exception/exit).
+ * Custom loop over dolrecomp_call (instead of dolrecomp_run_blocks) so we can
+ * watch pc per-block, detect spin loops, and keep the browser responsive. */
+#define FC_SPIN_WINDOW 4096u   /* pc-repeat window for spin detection */
+
 int fc_step(u32 max_blocks) {
-    /* Advance the guest timebase so mftb/OSGetTime progress each slice. */
     fc_cpu.timebase += FC_TB_PER_STEP;
-    int alive = dolrecomp_run_blocks(&fc_cpu, max_blocks);
-    if (alive == 0) {
-        EM_ASM({
-            console.error('[fc_step] guest halted:',
-                'pc=0x', ($0>>>0).toString(16),
-                'exception=0x', ($1>>>0).toString(16),
-                'prog_exc=0x', ($2>>>0).toString(16),
-                'dar=0x', ($3>>>0).toString(16));
-        }, fc_cpu.pc, fc_cpu.exception, fc_cpu.program_exception, fc_cpu.dar);
+
+    u32 blocks = 0;
+    u32 spin_repeats = 0;
+    u32 last_pc = 0;
+
+    while (blocks < max_blocks) {
+        if (!dolrecomp_call(&fc_cpu, fc_cpu.pc)) {
+            EM_ASM({
+                console.error('[fc_step] dispatch failed at pc=0x', ($0>>>0).toString(16));
+            }, fc_cpu.pc);
+            return 0;
+        }
+        if (fc_cpu.exception) {
+            EM_ASM({
+                console.error('[fc_step] guest halted:',
+                    'pc=0x', ($0>>>0).toString(16),
+                    'exception=0x', ($1>>>0).toString(16),
+                    'prog_exc=0x', ($2>>>0).toString(16),
+                    'dar=0x', ($3>>>0).toString(16));
+            }, fc_cpu.pc, fc_cpu.exception, fc_cpu.program_exception, fc_cpu.dar);
+            return 0;
+        }
+        blocks++;
+
+        /* Spin-loop watchdog: if the same block pc comes back repeatedly,
+         * the guest is waiting on something our HLE never provides. */
+        if (fc_cpu.pc == last_pc) {
+            spin_repeats++;
+            if (spin_repeats == FC_SPIN_WINDOW) {
+                EM_ASM({
+                    console.warn('[fc_step] spin suspected at pc=0x',
+                        ($0>>>0).toString(16), '— likely HLE-blocked; breaking slice');
+                }, fc_cpu.pc);
+                /* Break the slice: return alive so JS can keep scheduling,
+                 * but stop burning CPU on a wait loop this frame. */
+                return 1;
+            }
+        } else {
+            spin_repeats = 0;
+            last_pc = fc_cpu.pc;
+        }
     }
-    return alive;
+    return 1;
 }
 
 /* ---- HLE surface is entirely implemented in hle_impl.c (strong defs) ---- */

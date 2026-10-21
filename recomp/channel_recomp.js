@@ -1000,12 +1000,14 @@ var ASM_CONSTS = {
  2973: ($0, $1, $2, $3) => { console.log('[load] text', $0, 'addr=0x', $1.toString(16), 'off=0x', $2.toString(16), 'sz=0x', $3.toString(16)); },  
  3090: ($0, $1, $2, $3) => { console.log('[load] data', $0, 'addr=0x', $1.toString(16), 'off=0x', $2.toString(16), 'sz=0x', $3.toString(16)); },  
  3207: () => { console.error('[fc_boot] cpu_init failed'); },  
- 3255: ($0, $1, $2, $3) => { console.error('[fc_step] guest halted:', 'pc=0x', ($0>>>0).toString(16), 'exception=0x', ($1>>>0).toString(16), 'prog_exc=0x', ($2>>>0).toString(16), 'dar=0x', ($3>>>0).toString(16)); },  
- 3443: ($0) => { console.log('[spr] read  spr=', $0); },  
- 3484: ($0, $1) => { console.log('[spr] write spr=', $0, 'val=0x', ($1>>>0).toString(16)); },  
- 3558: ($0, $1) => { console.log('[fallback] mfspr r', $0, ',', $1, ' → 0'); },  
- 3620: ($0, $1, $2) => { console.log('[fallback] mtspr', $0, ', r', $1, '=0x', ($2>>>0).toString(16)); },  
- 3702: ($0, $1) => { console.error('[fallback] unhandled insn raw=0x', ($0>>>0).toString(16), 'at 0x', ($1>>>0).toString(16)); }
+ 3255: ($0) => { console.error('[fc_step] dispatch failed at pc=0x', ($0>>>0).toString(16)); },  
+ 3335: ($0, $1, $2, $3) => { console.error('[fc_step] guest halted:', 'pc=0x', ($0>>>0).toString(16), 'exception=0x', ($1>>>0).toString(16), 'prog_exc=0x', ($2>>>0).toString(16), 'dar=0x', ($3>>>0).toString(16)); },  
+ 3523: ($0) => { console.warn('[fc_step] spin suspected at pc=0x', ($0>>>0).toString(16), '— likely HLE-blocked; breaking slice'); },  
+ 3643: ($0) => { console.log('[spr] read  spr=', $0); },  
+ 3684: ($0, $1) => { console.log('[spr] write spr=', $0, 'val=0x', ($1>>>0).toString(16)); },  
+ 3758: ($0, $1) => { console.log('[fallback] mfspr r', $0, ',', $1, ' → 0'); },  
+ 3820: ($0, $1, $2) => { console.log('[fallback] mtspr', $0, ', r', $1, '=0x', ($2>>>0).toString(16)); },  
+ 3902: ($0, $1) => { console.error('[fallback] unhandled insn raw=0x', ($0>>>0).toString(16), 'at 0x', ($1>>>0).toString(16)); }
 };
 
 // Imports from the Wasm binary.
