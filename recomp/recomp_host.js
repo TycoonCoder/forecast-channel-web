@@ -60,6 +60,7 @@
     const fsSrc = `precision mediump float;
     varying vec2 v_uv;
     varying vec4 v_color;
+    varying vec3 v_normal;
     uniform sampler2D u_tex;
     uniform vec3 u_sun;
     uniform float u_time;
