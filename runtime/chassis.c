@@ -181,10 +181,19 @@ static void fc_cache_control(CPUState* cpu, u8 op, u32 ea, u32 cia) {
  * The channel pokes real hardware. Address-aware responses below are
  * decoded from the channel's own polling loops:
  *   0xCC00500A (PI)  : bit5 polled-until-set (0x800e56d8) — report ready
+ *   0xCC005004 (PI)  : combined-interrupt word polled-until-clear at
+ *                      0x800e56a0, then bit15 polled-until-set at
+ *                      0x800e576c. Real hardware: bit15 (reset-done)
+ *                      transitions clear→set when the PI reset completes.
+ *                      We model that: bit15 starts clear; once the channel
+ *                      writes the PI reset command (0xCC005012 ← 0x43),
+ *                      bit15 reads back set forever.
  *   0xCD00680C (DSP) : bit0 polled-until-clear — report idle/done
  *   0xCD006034/6834  : mailbox-full flags — report never-full
  *   0xCD006024 (Hollywood cfg) : status byte — report 0
  * Writes sink; reads default to 0. */
+static bool fc_pi_reset_done = false;
+
 static u64 fc_external_read(CPUState* cpu, u32 ea, u8 size) {
     (void)cpu; (void)size;
     static u32 seen[128] = {0};
@@ -199,15 +208,16 @@ static u64 fc_external_read(CPUState* cpu, u32 ea, u8 size) {
     /* Address-aware responses (see header comment above) */
     if (ea == 0xCC00500Au) return 0x20u;   /* PI status: bit5 set = ready */
     if (ea == 0xCC005000u) return 0x46u;   /* PI: standard config */
-    if (ea == 0xCC005004u) return 0x8000u; /* PI interrupt flag: bit15 set =
-                                              "reset complete" — the channel
-                                              polls this until set at
-                                              0x800e576c (GX init) */
+    if (ea == 0xCC005004u) return fc_pi_reset_done ? 0x8000u : 0x0000u;
     return 0;
 }
 
 static void fc_external_write(CPUState* cpu, u32 ea, u64 value, u8 size) {
     (void)cpu; (void)size;
+    /* PI reset command: writing 0x43 to 0xCC005012 resets the PI; after
+     * the write, the reset-done bit (0x5004 bit15) reads back set. */
+    if (ea == 0xCC005012u && (value & 0xFFu) == 0x43u)
+        fc_pi_reset_done = true;
     static u32 seen[128] = {0};
     static u32 seen_n = 0;
     bool fresh = true;
