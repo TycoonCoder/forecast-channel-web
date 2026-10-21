@@ -178,14 +178,15 @@ static void fc_cache_control(CPUState* cpu, u8 op, u32 ea, u32 cia) {
 }
 
 /* ---------------- External (MMIO) hooks ----------------
- * The channel pokes real hardware: DSP/audio DMA (0xCD006xxx), EXI
- * (0xCD8001xx), AI (0xCD0000C0), VI (0xCD0000xx), GX FIFO (0xCC000000).
- * On a Wii these carry data; in the browser we model the minimal
- * semantics the channel needs: reads report idle/done, writes sink. */
+ * The channel pokes real hardware. Address-aware responses below are
+ * decoded from the channel's own polling loops:
+ *   0xCC00500A (PI)  : bit5 polled-until-set (0x800e56d8) — report ready
+ *   0xCD00680C (DSP) : bit0 polled-until-clear — report idle/done
+ *   0xCD006034/6834  : mailbox-full flags — report never-full
+ *   0xCD006024 (Hollywood cfg) : status byte — report 0
+ * Writes sink; reads default to 0. */
 static u64 fc_external_read(CPUState* cpu, u32 ea, u8 size) {
     (void)cpu; (void)size;
-    /* Log each unique address once so we see the full hardware surface
-     * without spam (reads sit in hot polling loops). */
     static u32 seen[128] = {0};
     static u32 seen_n = 0;
     bool fresh = true;
@@ -194,8 +195,10 @@ static u64 fc_external_read(CPUState* cpu, u32 ea, u8 size) {
         seen[seen_n++] = ea;
         EM_ASM({ console.log('[mmio] R 0x', ($0>>>0).toString(16)); }, ea);
     }
-    /* DSP DMA status at 0xCD00680C: bit0 = busy → 0 means transfer done.
-     * Everything else reads idle/absent. */
+
+    /* Address-aware responses (see header comment above) */
+    if (ea == 0xCC00500Au) return 0x20u;   /* PI status: bit5 set = ready */
+    if (ea == 0xCC005000u) return 0x46u;   /* PI: standard config */
     return 0;
 }
 
