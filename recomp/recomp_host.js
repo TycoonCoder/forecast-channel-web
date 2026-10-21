@@ -296,7 +296,7 @@
 
   async function boot() {
     status("fetching channel binary…");
-    const res = await fetch("/forecast-channel-web/assets/channel_0000000d.app");
+    const res = await fetch("../assets/channel_0000000d.app");
     if (!res.ok) throw new Error("DOL fetch failed: " + res.status);
     const dol = new Uint8Array(await res.arrayBuffer());
     status(`binary loaded: ${dol.length} bytes; creating WASM runtime…`);
