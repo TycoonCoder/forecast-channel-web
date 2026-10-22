@@ -195,23 +195,56 @@ static void fc_cache_control(CPUState* cpu, u8 op, u32 ea, u32 cia) {
 static bool fc_pi_reset_done = false;
 
 static u64 fc_external_read(CPUState* cpu, u32 ea, u8 size) {
-    (void)cpu; (void)size;
+    (void)cpu;
     static u32 seen[128] = {0};
     static u32 seen_n = 0;
     bool fresh = true;
     for (u32 i = 0; i < seen_n; i++) if (seen[i] == ea) { fresh = false; break; }
     if (fresh && seen_n < 128) {
         seen[seen_n++] = ea;
-        EM_ASM({ console.log('[mmio] R 0x', ($0>>>0).toString(16)); }, ea);
+        EM_ASM({ console.log('[mmio] R 0x', ($0>>>0).toString(16), ' sz=', $1); }, ea, size);
     }
 
-    /* Address-aware responses (see header comment above) */
-    if (ea == 0xCC00500Au) return 0x20u;   /* PI status: bit5 set = ready */
-    if (ea == 0xCC005000u) return 0x46u;   /* PI: standard config */
-    if (ea == 0xCC005004u) return fc_pi_reset_done ? 0x8001u : 0x0000u;
-    /* 0x8001 = bit15 (reset done, polled at 0x800e576c until SET) +
-     * bit0 (int flag, combined-word poll at 0x800e56a0 waits until SET:
-     * 'rlwinm. bit0; beq loop' — beq LOOPS WHILE CLEAR). */
+    /* Address-aware responses. The channel reads 32-bit PI registers as TWO
+     * separate 16-bit lhz accesses (0xCC005004 upper, 0xCC005006 lower).
+     * We must return the correct half for the address + size. */
+    if (ea == 0xCC00500Au) return 0x20u;       /* PI status: bit5 set = ready */
+    if (ea == 0xCC005000u) return 0x46u;       /* PI: standard config */
+
+    /* 0xCC005004: PI combined interrupt status (upper 16 bits of 32-bit reg).
+         * Channel lhz reads upper half at 0x5004.
+         *   - Loop at 0x800E56A0: lhz at pc=0x800E56A0 tests bit 0 (0x8000),
+         *     branches WHILE set → exits when CLEAR. Return 0x0000.
+         *   - Loop at 0x800E576C: lhz at pc=0x800E576C tests SAME bit 0,
+         *     branches WHILE clear → exits when SET. Return 0x8000.
+         * Both read via 16-bit lhz at address 0xCC005004. We distinguish by
+         * cpu->pc (the load instruction's address). */
+        if (ea == 0xCC005004u) {
+            u64 ret;
+            if (size == 2) {
+                /* 16-bit read of upper half */
+                if (cpu->pc == 0x800E576Cu) {
+                    /* Second loop: needs bit 0 SET */
+                    ret = fc_pi_reset_done ? 0x8000u : 0x0000u;
+                } else {
+                    /* First loop (pc=0x800E56A0 or 0x800E56A4): needs bit 0 CLEAR */
+                    ret = 0x0000u;
+                }
+            } else {
+                /* 32-bit read: upper half in upper 16, lower half in lower 16 */
+                ret = 0x00000000u;
+            }
+            return ret;
+        }
+
+    /* 0xCC005006: PI interrupt mask / lower status half. Channel reads upper
+     * 16 bits of this register via lhz at 0x5006. We report no interrupts
+     * masked/enabled so the combined word test depends only on 0x5004. */
+    if (ea == 0xCC005006u) {
+        if (size == 2) return 0x0000u;
+        return 0x00000000u;
+    }
+
     return 0;
 }
 

@@ -1008,8 +1008,8 @@ var ASM_CONSTS = {
  3766: ($0, $1) => { console.log('[fallback] mfspr r', $0, ',', $1, ' → 0'); },  
  3828: ($0, $1, $2) => { console.log('[fallback] mtspr', $0, ', r', $1, '=0x', ($2>>>0).toString(16)); },  
  3910: ($0, $1) => { console.error('[fallback] unhandled insn raw=0x', ($0>>>0).toString(16), 'at 0x', ($1>>>0).toString(16)); },  
- 4020: ($0) => { console.log('[mmio] R 0x', ($0>>>0).toString(16)); },  
- 4075: ($0, $1) => { console.log('[mmio] W 0x', ($0>>>0).toString(16), ' ← 0x', ($1>>>0).toString(16)); }
+ 4020: ($0, $1) => { console.log('[mmio] R 0x', ($0>>>0).toString(16), ' sz=', $1); },  
+ 4087: ($0, $1) => { console.log('[mmio] W 0x', ($0>>>0).toString(16), ' ← 0x', ($1>>>0).toString(16)); }
 };
 
 // Imports from the Wasm binary.
