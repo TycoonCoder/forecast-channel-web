@@ -151,6 +151,7 @@ static void fc_instruction_fallback(CPUState* cpu, u32 raw, u32 cia) {
         case 86:  /* dcbf — flush hint, no-op */ return;
         case 470: /* dcbi — invalidate, no-op */ return;
         case 278: /* tlbie — tlb invalidate, no-op */ return;
+        case 1014: /* dcbz / dcbz_l — zero cache block, no-op on flat memory */ return;
         case 17:  /* mfmsr — supervisor mode reports 0x0000.30? report MSR with FP */ 
             cpu->gpr[(raw >> 21) & 0x1F] = cpu->msr;
             return;
@@ -254,6 +255,13 @@ static void fc_external_write(CPUState* cpu, u32 ea, u64 value, u8 size) {
      * the write, the reset-done bit (0x5004 bit15) reads back set. */
     if (ea == 0xCC005012u && (value & 0xFFu) == 0x43u)
         fc_pi_reset_done = true;
+    /* DEBUG: catch OOB writes past MEM1 (0x80000000 + MEM1_SIZE = 0x88200000).
+     * The dcbz loop at 0x800E59B8 zeroes from 0x80000000 upward; when it
+     * exceeds the 24MB MEM1 window, absorb silently. */
+    if (ea >= 0x80000000u + MEM1_SIZE && ea < 0xCC000000u) {
+        EM_ASM({ console.log('[mmio] W MEM1-OOB 0x', ($0>>>0).toString(16), ' ← 0x', ($1>>>0).toString(16)); }, ea, (u32)value);
+        return;
+    }
     static u32 seen[128] = {0};
     static u32 seen_n = 0;
     bool fresh = true;
@@ -359,6 +367,11 @@ int fc_boot(const unsigned char* dol, unsigned len) {
         v = 0x04000000u; bp[0x3118]=v>>24; bp[0x3119]=v>>16; bp[0x311A]=v>>8; bp[0x311B]=v;
     }
 
+    /* Enable locked cache (HID2.LCE) so dcbz doesn't raise machine-check.
+     * The recompiled dcbz loop at 0x800E59B8 inlines mem_write32, but any
+     * dcbz that hits the fallback path would fault without this. */
+    fc_cpu.hid2 = 0x40000000u;  /* PPC_HID2_LCE */
+
     fc_cpu.pc = DOLRECOMP_ENTRY_POINT;      /* 0x8000403C */
     fc_cpu.gpr[1] = 0x803437A8;             /* SP from stage 5      */
     fc_cpu.gpr[2] = 0x80339900;             /* SDA2                 */
@@ -431,23 +444,68 @@ int fc_step(u32 max_blocks) {
 
     while (blocks < max_blocks) {
         fc_last_dispatch_pc = fc_cpu.pc;
+
+        /* Skip exception vectors AND handlers (0x80000000-0x80020000) — not recompiled.
+         * The channel sets up handlers here; we just skip past them. */
+        if (fc_cpu.pc >= 0x80000000u && fc_cpu.pc < 0x80020000u) {
+            fc_cpu.pc = 0x80020000u;
+        }
+
+        /* Skip the dcbst loop at 0x800E598C-0x800E5994 and the dcbz loop
+         * at 0x800E59B8-0x800E59C0. Both zero memory and eventually trigger
+         * machine-check exceptions. Memory is already zero; jump to exits. */
+        if (fc_cpu.pc == 0x800E598Cu) {
+            fc_cpu.pc = 0x800E5998u;  /* jump to blr after dcbst loop */
+        }
+        if (fc_cpu.pc == 0x800E59B8u) {
+            fc_cpu.pc = 0x800E59C4u;  /* jump to blr after dcbz loop */
+        }
+
         if ((blocks & 63u) == 0) fc_hist_record(fc_cpu.pc);
         fc_trace_record(fc_cpu.pc);
+
         if (!dolrecomp_call(&fc_cpu, fc_cpu.pc)) {
+            /* If the PC is in the exception vector range (0x80000000-0x80001000),
+             * those vectors aren't recompiled. Skip past them instead of failing. */
+            if (fc_cpu.pc >= 0x80000000u && fc_cpu.pc < 0x80001000u) {
+                fc_cpu.pc = 0x80001000u;
+                continue;
+            }
             EM_ASM({
                 console.error('[fc_step] dispatch failed at pc=0x', ($0>>>0).toString(16));
             }, fc_cpu.pc);
             return 0;
         }
+
         if (fc_cpu.exception) {
+            /* DEBUG: log PC after dispatch, before exception check */
+            EM_ASM({ console.log('[fc_step] exception triggered at pc=0x', ($0>>>0).toString(16), ' exc=', $1); }, fc_cpu.pc, fc_cpu.exception);
+        }
+        if (fc_cpu.exception) {
+            /* FP unavailable (0x20): ensure FP bit is set in MSR and retry */
+            if (fc_cpu.exception & PPC_EXC_FP_UNAVAILABLE) {
+                EM_ASM({ console.log('[fc_step] FP UNAVAILABLE caught, enabling FP'); });
+                fc_cpu.exception &= ~PPC_EXC_FP_UNAVAILABLE;
+                fc_cpu.msr |= FC_MSR_FP;
+                continue;
+            }
             /* `sc` (system-call) is NOT fatal on Wii: the RVL SDK uses it as
              * a cache-sync barrier (DCFlushRange etc. end in sc; the OS
              * handler at vector 0x00C00 just resumes). Simulate that: clear
              * the exception and resume where the handler would return. */
-            if (fc_cpu.exception == PPC_EXC_SYSTEM_CALL) {
-                fc_cpu.exception = 0;
+            if (fc_cpu.exception & PPC_EXC_SYSTEM_CALL) {
+                fc_cpu.exception &= ~PPC_EXC_SYSTEM_CALL;
                 fc_cpu.pc = fc_cpu.srr0;   /* set by ppc_take_exception = sc addr */
                 fc_cpu.pc += 4;            /* resume past the sc instruction */
+                continue;
+            }
+            /* Machine-check (0x10): the dcbz/dcbst cache ops can raise this
+             * on real hardware if locked cache not enabled. We model flat
+             * memory so just clear and resume. */
+            if (fc_cpu.exception & PPC_EXC_MACHINE_CHECK) {
+                EM_ASM({ console.log('[fc_step] MACHINE CHECK caught, clearing'); });
+                fc_cpu.exception &= ~PPC_EXC_MACHINE_CHECK;
+                fc_cpu.pc += 4;  /* resume past faulting instruction */
                 continue;
             }
             EM_ASM({
@@ -466,6 +524,11 @@ int fc_step(u32 max_blocks) {
          * mid-slice exactly like real hardware. Debug: temporarily very
          * fast to discriminate "slow timer" from "broken wait math". */
         fc_cpu.timebase += 4096;
+
+        /* DEBUG: log PC before exception check */
+        if (fc_cpu.exception) {
+            EM_ASM({ console.log('[fc_step] exception triggered at pc=0x', ($0>>>0).toString(16)); }, fc_cpu.pc);
+        }
 
         /* Spin-loop watchdog: if the same block pc comes back repeatedly,
          * the guest is waiting on something our HLE never provides. */
