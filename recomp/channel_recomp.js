@@ -1000,29 +1000,40 @@ var ASM_CONSTS = {
  2981: ($0, $1, $2, $3) => { console.log('[load] text', $0, 'addr=0x', $1.toString(16), 'off=0x', $2.toString(16), 'sz=0x', $3.toString(16)); },  
  3098: ($0, $1, $2, $3) => { console.log('[load] data', $0, 'addr=0x', $1.toString(16), 'off=0x', $2.toString(16), 'sz=0x', $3.toString(16)); },  
  3215: () => { console.error('[fc_boot] cpu_init failed'); },  
- 3263: ($0) => { console.error('[fc_step] dispatch failed at pc=0x', ($0>>>0).toString(16)); },  
- 3343: ($0, $1) => { console.log('[fc_step] exception triggered at pc=0x', ($0>>>0).toString(16), ' exc=', $1); },  
- 3438: () => { console.log('[fc_step] FP UNAVAILABLE caught, enabling FP'); },  
- 3503: () => { console.log('[fc_step] MACHINE CHECK caught, clearing'); },  
- 3564: ($0, $1, $2, $3) => { console.error('[fc_step] guest halted:', 'pc=0x', ($0>>>0).toString(16), 'exception=0x', ($1>>>0).toString(16), 'prog_exc=0x', ($2>>>0).toString(16), 'dar=0x', ($3>>>0).toString(16)); },  
- 3752: ($0) => { console.warn('[fc_step] spin suspected at pc=0x', ($0>>>0).toString(16), '— likely HLE-blocked; breaking slice'); },  
- 3872: ($0) => { console.log('[spr] read  spr=', $0); },  
- 3913: ($0, $1) => { console.log('[spr] write spr=', $0, 'val=0x', ($1>>>0).toString(16)); },  
- 3987: ($0, $1) => { console.log('[fallback] mfspr r', $0, ',', $1, ' → 0'); },  
- 4049: ($0, $1, $2) => { console.log('[fallback] mtspr', $0, ', r', $1, '=0x', ($2>>>0).toString(16)); },  
- 4131: ($0, $1) => { console.error('[fallback] unhandled insn raw=0x', ($0>>>0).toString(16), 'at 0x', ($1>>>0).toString(16)); },  
- 4241: ($0, $1) => { console.log('[mmio] R 0x', ($0>>>0).toString(16), ' sz=', $1); },  
- 4308: ($0, $1) => { console.log('[mmio] W MEM1-OOB 0x', ($0>>>0).toString(16), ' ← 0x', ($1>>>0).toString(16)); },  
- 4406: ($0, $1) => { console.log('[mmio] W 0x', ($0>>>0).toString(16), ' ← 0x', ($1>>>0).toString(16)); }
+ 3263: ($0) => { console.log('[park] handler dispatched (single); flag=0x', ($0>>>0).toString(16)); },  
+ 3350: ($0) => { console.error('[fc_step] dispatch failed at pc=0x', ($0>>>0).toString(16)); },  
+ 3430: ($0, $1, $2, $3) => { console.error('[fc_step] exception storm:', 'pc=0x', ($0>>>0).toString(16), 'exc=0x', ($1>>>0).toString(16), 'srr0=0x', ($2>>>0).toString(16), 'dar=0x', ($3>>>0).toString(16)); },  
+ 3611: ($0, $1, $2, $3, $4) => { console.error('[fc_step] guest halted:', 'pc=0x', ($0>>>0).toString(16), 'exception=0x', ($1>>>0).toString(16), 'prog_exc=0x', ($2>>>0).toString(16), 'dar=0x', ($3>>>0).toString(16), 'srr0=0x', ($4>>>0).toString(16)); },  
+ 3833: ($0) => { console.warn('[fc_step] spin suspected at pc=0x', ($0>>>0).toString(16), '— likely HLE-blocked; breaking slice'); },  
+ 3953: ($0) => { console.log('[spr] read  spr=', $0); },  
+ 3994: ($0, $1) => { console.log('[spr] write spr=', $0, 'val=0x', ($1>>>0).toString(16)); },  
+ 4068: ($0, $1) => { console.log('[fallback] mfspr r', $0, ',', $1, ' → 0'); },  
+ 4130: ($0, $1, $2) => { console.log('[fallback] mtspr', $0, ', r', $1, '=0x', ($2>>>0).toString(16)); },  
+ 4212: ($0, $1) => { console.error('[fallback] unhandled insn raw=0x', ($0>>>0).toString(16), 'at 0x', ($1>>>0).toString(16)); },  
+ 4322: ($0, $1) => { console.log('[mmio] R 0x', ($0>>>0).toString(16), ' sz=', $1); },  
+ 4389: ($0) => { console.log('[ipc] PPCMSG <- 0x', ($0>>>0).toString(16)); },  
+ 4451: ($0, $1) => { console.log('[mmio] W 0x', ($0>>>0).toString(16), ' ← 0x', ($1>>>0).toString(16)); },  
+ 4540: ($0, $1) => { console.log('[ipc] completed req=0x', ($0>>>0).toString(16), 'cmd=', $1); },  
+ 4618: ($0) => { console.error('[handler] dispatch failed at 0x', ($0>>>0).toString(16)); },  
+ 4695: ($0, $1) => { console.error('[handler] exception 0x', ($0>>>0).toString(16), ' pc=0x', ($1>>>0).toString(16)); },  
+ 4796: ($0, $1) => { console.log('[handler] ran', $0, 'blocks; completed=', $1); }
 };
 
 // Imports from the Wasm binary.
 var _load_guest_image,
   _malloc,
+  _fc_watch_count,
+  _fc_watch_pc_at,
+  _fc_watch_off_at,
+  _fc_watch_sz_at,
+  _fc_hcall_count,
+  _fc_hcall_pc_at,
+  _fc_hcall_n_at,
   _fc_boot,
   _free,
   _fc_get_pc,
   _fc_get_last_pc,
+  _fc_read_guest32,
   _fc_trace_count,
   _fc_trace_from_at,
   _fc_trace_to_at,
@@ -1043,10 +1054,18 @@ var _load_guest_image,
 function assignWasmExports(wasmExports) {
   _load_guest_image = Module['_load_guest_image'] = wasmExports['load_guest_image'];
   _malloc = Module['_malloc'] = wasmExports['malloc'];
+  _fc_watch_count = Module['_fc_watch_count'] = wasmExports['fc_watch_count'];
+  _fc_watch_pc_at = Module['_fc_watch_pc_at'] = wasmExports['fc_watch_pc_at'];
+  _fc_watch_off_at = Module['_fc_watch_off_at'] = wasmExports['fc_watch_off_at'];
+  _fc_watch_sz_at = Module['_fc_watch_sz_at'] = wasmExports['fc_watch_sz_at'];
+  _fc_hcall_count = Module['_fc_hcall_count'] = wasmExports['fc_hcall_count'];
+  _fc_hcall_pc_at = Module['_fc_hcall_pc_at'] = wasmExports['fc_hcall_pc_at'];
+  _fc_hcall_n_at = Module['_fc_hcall_n_at'] = wasmExports['fc_hcall_n_at'];
   _fc_boot = Module['_fc_boot'] = wasmExports['fc_boot'];
   _free = Module['_free'] = wasmExports['free'];
   _fc_get_pc = Module['_fc_get_pc'] = wasmExports['fc_get_pc'];
   _fc_get_last_pc = Module['_fc_get_last_pc'] = wasmExports['fc_get_last_pc'];
+  _fc_read_guest32 = Module['_fc_read_guest32'] = wasmExports['fc_read_guest32'];
   _fc_trace_count = Module['_fc_trace_count'] = wasmExports['fc_trace_count'];
   _fc_trace_from_at = Module['_fc_trace_from_at'] = wasmExports['fc_trace_from_at'];
   _fc_trace_to_at = Module['_fc_trace_to_at'] = wasmExports['fc_trace_to_at'];
