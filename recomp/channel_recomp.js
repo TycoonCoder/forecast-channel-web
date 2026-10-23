@@ -1024,8 +1024,9 @@ var ASM_CONSTS = {
  5128: ($0, $1, $2, $3) => { console.warn('[null-read] ea=0x', ($0>>>0).toString(16), ' sz=', $1, ' pc=0x', ($2>>>0).toString(16), ' lr=0x', ($3>>>0).toString(16)); },  
  5268: ($0, $1) => { console.log('[mmio] R 0x', ($0>>>0).toString(16), ' sz=', $1); },  
  5335: ($0) => { console.log('[ipc] PPCMSG <- 0x', ($0>>>0).toString(16)); },  
- 5397: ($0, $1) => { console.log('[mmio] W 0x', ($0>>>0).toString(16), ' ← 0x', ($1>>>0).toString(16)); },  
- 5486: ($0, $1) => { console.log('[ipc] completed req=0x', ($0>>>0).toString(16), 'cmd=', $1); }
+ 5397: ($0, $1, $2) => { console.log('[ipc] PPCCTRL poke: req=0x', ($0>>>0).toString(16), ' cmd=0x', ($1>>>0).toString(16), ' res_ptr=0x', ($2>>>0).toString(16)); },  
+ 5539: ($0, $1) => { console.log('[mmio] W 0x', ($0>>>0).toString(16), ' ← 0x', ($1>>>0).toString(16)); },  
+ 5628: ($0, $1) => { console.log('[ipc] completed req=0x', ($0>>>0).toString(16), 'cmd=', $1); }
 };
 
 // Imports from the Wasm binary.
