@@ -771,6 +771,20 @@ int fc_step(u32 max_blocks) {
             memset(pg, 0, 0x1000);
         }
 
+        /* Seed the app subsystem state words so the channel believes its
+         * data subsystems are READY (state 2) and configured:
+         *   [0x80330CFC] (r13-26692) = 2 — checked by 0x8006AB4C (worker's
+         *     fetch path returns -26 unless == 2)
+         *   [0x80330D08] (r13-26680) = 0 — "not yet init" flag of 0x8006AB14
+         *   WC24 ctx ptr 0x80330AD8 already seeded elsewhere.
+         * Big-endian words in guest memory. */
+        {
+            unsigned char* s1 = host_ptr(0x80330CFCu);
+            if (s1[0]==0 && s1[1]==0 && s1[2]==0 && s1[3]==0) {
+                s1[0]=0; s1[1]=0; s1[2]=0; s1[3]=2;
+            }
+        }
+
         /* Inject a dummy message into the NWC24 message queue at 0x80000212
          * to trigger the weather fetch path. The dequeue function at 0x800E6184
          * reads from this queue pointer. We inject a message with a known
