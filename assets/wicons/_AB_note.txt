@@ -1,0 +1,1 @@
+The old bug (left) vs corrected decode (right) — same source texture, same decoder except the RGB5A3 opaque-branch fix. The sun icon is the canary; every opaque color in every extracted texture was subtly off.

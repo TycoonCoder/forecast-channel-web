@@ -213,12 +213,63 @@ static bool fc_pi_reset_done = false;
  * ipc_buf). The channel's own wrapper (0x801189F0 area) later reads
  * [req+32] = completion callback and [req+36] = result, then calls
  * callback([req+4], [req+36]). Real hardware has Starlet fill the result
- * and raise an interrupt; we complete the request AT SEND TIME with a
- * success result so every poll/spin/callback path finishes immediately.
- * For /dev/net and friends the "success" is 0; for opens a small fd. */
+ * and raise an interrupt; we complete the request AT SEND TIME so every
+ * poll/spin/callback path finishes immediately.
+ *
+ * FILE LAYER (2026-10-24): the channel opens content by name
+ * (weather_layout.arc.LZ etc.) through the NAND/DVD device. We now serve
+ * REAL bytes: a host file table (fc_file_register from JS) maps guest
+ * paths to host buffers loaded into a guest-visible backing page; open
+ * returns an fd, read returns actual bytes, seek/getlength report real
+ * sizes. Unknown opens still succeed with fd 0 and read 0 — the channel's
+ * native no-data path. */
 static u32 fc_ipc_req_ptr = 0;
 static bool fc_ipc_reply_pending = false;
 static unsigned char ipc_buf[0x4000];   /* backing for 0x40000000..0x40004000 */
+
+/* ---- host file table ---- */
+#define FC_MAX_FILES 32
+typedef struct {
+    u32 guest_base;          /* address in guest RAM where the file bytes live */
+    u32 size;
+    char path[64];
+    bool used;
+} FcFile;
+static FcFile fc_files[FC_MAX_FILES];
+static u32 fc_fd_to_file[16];           /* fd -> fc_files index+1; 0 = empty */
+static u32 fc_next_fd = 1;
+
+/* JS registers a file: path (guest-facing name), guest_base (where its
+ * bytes were written into guest RAM by the host), size. */
+void fc_file_register(const char* path, u32 guest_base, u32 size) {
+    for (int i = 0; i < FC_MAX_FILES; i++) {
+        if (!fc_files[i].used) {
+            fc_files[i].used = true;
+            fc_files[i].guest_base = guest_base;
+            fc_files[i].size = size;
+            int j = 0;
+            for (; j < 63 && path[j]; j++) fc_files[i].path[j] = path[j];
+            fc_files[i].path[j] = 0;
+            EM_ASM({ console.log('[fs] registered "', $1, '" at guest 0x', ($0>>>0).toString(16), ' size=', $2); },
+                   guest_base, path, size);
+            return;
+        }
+    }
+    EM_ASM({ console.warn('[fs] table full, cannot register'); });
+}
+
+/* find a registered file by the OPEN request's path argument */
+static int fc_file_find(const char* path) {
+    if (!path) return -1;
+    for (int i = 0; i < FC_MAX_FILES; i++)
+        if (fc_files[i].used) {
+            int j = 0;
+            while (path[j] && fc_files[i].path[j] && path[j] == fc_files[i].path[j]) j++;
+            if (!path[j] && !fc_files[i].path[j]) return i;
+        }
+    return -1;
+}
+
 
 static u32 fc_ipc_read32(u32 addr) {
     if (addr < 0x40000000u || addr >= 0x40004000u) return 0;
@@ -239,11 +290,39 @@ static void fc_ipc_write32(u32 addr, u32 v) {
 /* Complete an IPC request: write result into [req+36] (async result slot
  * consumed by the channel's completion callback at 0x80118B58+) and
  * mark the reply pending so HW_IPC_PPCCTRL reads report the ack. */
+static void fc_ipc_dump_req(u32 req) {
+    /* dump first 0x40 bytes + any printable string inside the struct */
+    u8 b[0x40];
+    for (int i = 0; i < 0x40; i++) b[i] = 0;
+    for (u32 a = req; a < req + 0x40u; a++) {
+        u32 o = a - 0x40000000u;
+        if (o < 0x4000u) b[a - req] = ipc_buf[o];
+        else {
+            /* request may live in guest RAM proper */
+            unsigned char* h = host_ptr(a);
+            if (h) b[a - req] = *h;
+        }
+    }
+    /* words */
+    EM_ASM({
+        const w = [];
+        for (let i = 0; i < 16; i++) {
+            const v = ($1[i<<2]<<24) | ($1[(i<<2)+1]<<16) | ($1[(i<<2)+2]<<8) | $1[(i<<2)+3];
+            w.push(v.toString(16));
+        }
+        let s = '';
+        for (let i = 0; i < 64; i++) { const c = $1[i]; if (c >= 32 && c < 127) s += String.fromCharCode(c); }
+        console.log('[ipc-req] req=0x', ($0>>>0).toString(16), ' words:', w.join(' '), ' ascii:', JSON.stringify(s));
+    }, req, b);
+}
+
 static void fc_ipc_complete(u32 req) {
     if (!req) return;
     u32 cmd = fc_ipc_read32(req + 8u);      /* channel's cmd word (6=async) */
     u32 fd  = fc_ipc_read32(req + 4u);
     (void)fd;
+    static u32 dumped = 0;
+    if (dumped < 24) { fc_ipc_dump_req(req); dumped++; }
     /* result: success. (open() would want an fd; start with 0 everywhere,
      * adjust if the channel rejects fd 0.) */
     fc_ipc_write32(req + 36u, 0u);
@@ -318,28 +397,54 @@ static u64 fc_external_read(CPUState* cpu, u32 ea, u8 size) {
     return 0;
 }
 
-/* ---- GX FIFO command decoder ---- */
-/* The channel's GX library writes commands to the write-gather pipe at 0xCC008000.
- * Commands are 32-bit words with the upper 8 bits being the command opcode. */
-static void fc_gx_fifo_write(u32 value) {
-    u8 cmd = value >> 24;
-    u32 data = value & 0xFFFFFF;
-    
-    /* GX command opcodes (from gx.h / libogc) */
-    switch (cmd) {
-        case 0x10: /* GX_BP_LOAD_REG - load BP register */
-        case 0x61: /* GX_BP_LOAD_GEN_MODE */
-        case 0xF0: /* GX_FIFO_CMD_GXBEGIN */
-        case 0xF8: /* GX_FIFO_CMD_GXEND */
-        case 0x80: /* GX_FIFO_CMD_VTXDESC */
-        case 0xA0: /* GX_FIFO_CMD_VTXATTRFMT */
-        case 0xA1: /* GX_FIFO_CMD_VTXATTRFMT + 1 */
-        case 0x98: /* GX_FIFO_CMD_TEV */
-            EM_ASM({ console.log('[GX] cmd=0x', ($0>>>0).toString(16), ' data=0x', ($1>>>0).toString(16)); }, cmd, data);
-            break;
-        default:
-            EM_ASM({ console.log('[GX] UNKNOWN cmd=0x', ($0>>>0).toString(16), ' data=0x', ($1>>>0).toString(16)); }, cmd, data);
-            break;
+/* ---- GX FIFO byte-stream capture ----
+ * The WGPIPE (0xCC008000) is a BYTE pipe: the channel's GX library writes
+ * opcodes as 8-bit stores and payloads as 8/16/32-bit stores (MSB-first).
+ * A per-word decoder misreads operand bytes as opcodes. Instead we
+ * reconstruct the byte stream (size-aware, big-endian per store) into a
+ * large ring buffer and decode OFFLINE — the capture is the ground truth
+ * for the WebGL bridge. Frame boundaries: BP 0x52 (EFB copy) / 0x45/0x46
+ * draw-done markers.
+ *
+ * Layout per event: u8 kind (0=payload byte,1=opcode byte), u8 byte.
+ * kind exists so a decoder can resync; a plain byte stream also works. */
+#define FC_GXCAP_BYTES (4u << 20)
+#define FC_GXCAP_MAX   (FC_GXCAP_BYTES / 2u)
+static unsigned char fc_gxcap[FC_GXCAP_BYTES];
+static u32 fc_gxcap_used = 0;
+static u32 fc_gxcap_frames = 0;   /* count of BP 0x52 (EFB copy) events */
+static u32 fc_gxcap_overflow = 0;
+static bool fc_gxcap_armed = false;   /* set by fc_gxcap_start() from JS */
+
+void fc_gxcap_start(void) { fc_gxcap_used = 0; fc_gxcap_frames = 0; fc_gxcap_overflow = 0; fc_gxcap_armed = true; }
+u32 fc_gxcap_count(void) { return fc_gxcap_used; }
+u32 fc_gxcap_frames_seen(void) { return fc_gxcap_frames; }
+u32 fc_gxcap_byte_at(u32 i) { return i < fc_gxcap_used ? fc_gxcap[i] : 0; }
+
+static void fc_gx_fifo_write(CPUState* cpu, u64 value, u8 size) {
+    if (!fc_gxcap_armed) {
+        /* cheap live view until capture is armed: count BP loads only */
+        u8 b = (u8)(value >> 24);
+        if (size == 1 && b == 0x61) fc_gxcap_frames++;   /* rough frame proxy */
+        return;
+    }
+    /* append store bytes MSB-first (guest is big-endian) */
+    for (int i = (int)size - 1; i >= 0; i--) {
+        u8 byte = (u8)((value >> (8 * i)) & 0xFFu);
+        if (fc_gxcap_used < FC_GXCAP_MAX) {
+            /* kind: 0 for payload; mark the FIRST byte of a sub-word store as
+             * an opcode candidate (1) so offline decoding can resync */
+            fc_gxcap[fc_gxcap_used++] = (i == (int)size - 1) ? 1 : 0;
+            fc_gxcap[fc_gxcap_used++] = byte;
+        } else {
+            fc_gxcap_overflow++;
+        }
+    }
+    /* frame marker: BP load of register 0x52 (trigger EFB copy) arrives as
+     * byte 0x61 then word with top byte 0x52 — detect the 0x52 byte */
+    if (size == 4) {
+        u8 top = (u8)(value >> 24);
+        if (top == 0x52) fc_gxcap_frames++;
     }
 }
 
@@ -373,7 +478,7 @@ static void fc_external_write(CPUState* cpu, u32 ea, u64 value, u8 size) {
 
     /* GX FIFO write-gather pipe at 0xCC008000 */
     if (ea == 0xCC008000u) {
-        fc_gx_fifo_write((u32)value);
+        fc_gx_fifo_write(cpu, value, size);
         return;
     }
 
@@ -880,6 +985,25 @@ int fc_step(u32 max_blocks) {
             continue;
         }
 
+        /* ---- WC24 data-present seed at the fetch state machine ----
+         * 0x8000AD28 is main's fetch state machine (message handler). Its
+         * case 0 checks four readiness words at 0x801D97B0/B4/B8/BC against
+         * mask 0x1310 (cascading OR): if ANY matches, main calls the
+         * request-city-forecast sender (0x80033878 family) which posts the
+         * first message to the worker queue 0x801DD9E0. On real hardware
+         * the WC24 daemon writes these words after a download completes;
+         * in our environment the daemon is dead, so the words stay 0 and
+         * main never requests anything. Model "WC24 has fresh data": seed
+         * the flag word (0x801D97B4 — cleared by the library, not used as
+         * a pointer) at every dispatch of the state machine so the check
+         * passes and main's OWN code drives the fetch. */
+        if (fc_cpu.pc == 0x8000AD28u) {
+            unsigned char* w = host_ptr(0x801D97B4u);
+            if (!((w[0] == 0x00) && (w[1] == 0x00) && (w[2] == 0x13) && (w[3] == 0x10))) {
+                w[0] = 0x00; w[1] = 0x00; w[2] = 0x13; w[3] = 0x10;   /* BE 0x1310 */
+            }
+        }
+
         /* PROBE v4: 0x800EE4F0 = queue-block/sleep (r3 = queue object). Log
          * each distinct queue a thread blocks on — this reveals where the
          * main thread parks (the missing piece: 444k null-switches mean the
@@ -896,6 +1020,25 @@ int fc_step(u32 max_blocks) {
                 u32 w4 = (q && q < 0x81000000u) ? fc_read_guest_word(q + 4u) : 0;
                 EM_ASM({ console.log('[qblock] thread blocks on queue=0x', ($0>>>0).toString(16), ' w0=0x', ($1>>>0).toString(16), ' w4=0x', ($2>>>0).toString(16)); },
                        q, w0, w4);
+            }
+            /* ---- wake main ----
+             * Main (the app/UI thread) parks sleeping on the ThreadQueue at
+             * 0x803313F0 (alarm queue) — created at init, but nothing ever
+             * wakes it because the WC24 alarm was never armed (WC24 init
+             * failed in our environment). Model the alarm firing: when the
+             * sleeper is main and the queue is empty, return immediately
+             * (skip the block that would park it) so its state machine ticks.
+             * This is the same shape as the VI-retrace skip above. */
+            if (q == 0x803313F0u) {
+                static u32 wake_count = 0;
+                wake_count++;
+                if (wake_count <= 2000u) {
+                    if (wake_count <= 3 || (wake_count % 500) == 0)
+                        EM_ASM({ console.log('[wake-main] skipping park on alarm queue (', $0, ' times)'); }, wake_count);
+                    fc_cpu.pc = fc_cpu.lr & ~3u;   /* return from OSSleepThread-style call */
+                    fc_cpu.gpr[3] = 0;
+                    continue;
+                }
             }
         }
 

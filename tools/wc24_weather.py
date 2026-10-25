@@ -59,7 +59,7 @@ def lz10_wrap(plain):
     size = len(plain)
     out = bytearray()
     out.append(0x10)
-    out += bytes([(size >> 16) & 0xFF, (size >> 8) & 0xFF, size & 0xFF])
+    out += bytes([size & 0xFF, (size >> 8) & 0xFF, (size >> 16) & 0xFF])  # u24 LE
     i = 0
     while i < size:
         # all-literal block: flag 0x00 + up to 8 literal bytes
@@ -101,16 +101,18 @@ def build_short(cities, data):
     rows = bytearray()
     for (cc, rc, lc, name, lat, lon), wx in zip(cities, data):
         cur = wx["current"]
-        rows += struct.pack(">BBHIIHbBbBBBBHH",
+        t_c = max(-128, min(127, int(round(cur["temperature_2m"]))))
+        t_f = max(-128, min(127, int(round(cur["temperature_2m"] * 9 / 5 + 32))))
+        rows += struct.pack(">BBHIIHBbBBBBHH",
             cc, rc, lc, open_ts, close_ts,
             cond(cur["weather_code"]),
             0,                                        # unknown
-            int(round(cur["temperature_2m"])),        # temp C (s8)
-            int(round(cur["temperature_2m"] * 9 / 5 + 32)),  # temp F (s8)
+            t_c,                                      # temp C (s8)
+            t_f,                                      # temp F (s8)
             wind_dir_code(cur["wind_direction_10m"]),
-            int(round(cur["wind_speed_10m"])),         # km/h (u8)
-            int(round(cur["wind_speed_10m"] * 0.621371)),  # mph (u8)
-            0, 0)                                     # padding
+            min(255, int(round(cur["wind_speed_10m"]))),         # km/h (u8)
+            min(255, int(round(cur["wind_speed_10m"] * 0.621371))),  # mph (u8)
+            0, 0)                                     # unknown1, unknown2
     hdr = struct.pack(">IIIII", 0, 0, 0, open_ts, close_ts)
     hdr += struct.pack(">BBBBB", 49, 0, 0, 0, 0)      # country/lang/region/pad
     hdr += struct.pack(">II", len(cities), 0x20)      # count, table offset
