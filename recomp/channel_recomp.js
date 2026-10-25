@@ -1009,35 +1009,38 @@ var ASM_CONSTS = {
  3691: ($0, $1) => { console.log('[hook6210] pc=0x800E6210 r3=0x', ($0>>>0).toString(16), ' lr=0x', ($1>>>0).toString(16)); },  
  3798: ($0, $1) => { console.log('[hook62xx] pc=0x', ($0>>>0).toString(16), ' r3=0x', ($1>>>0).toString(16)); },  
  3891: ($0, $1, $2) => { console.log('[qblock] thread blocks on queue=0x', ($0>>>0).toString(16), ' w0=0x', ($1>>>0).toString(16), ' w4=0x', ($2>>>0).toString(16)); },  
- 4035: ($0, $1, $2) => { console.log('[qrecv] queue=0x', ($0>>>0).toString(16), ' w0=0x', ($1>>>0).toString(16), ' w1=0x', ($2>>>0).toString(16)); },  
- 4161: ($0, $1, $2, $3) => { console.log('[thread-resume] tcb=0x', ($0>>>0).toString(16), ' now at 0x', ($1>>>0).toString(16), ' | msgq[0x8001D9E0]=0x', ($2>>>0).toString(16), ' 0x', ($3>>>0).toString(16)); },  
- 4343: () => { console.warn('[halt] assert storm (>24) — breaking slice'); },  
- 4409: ($0) => { console.warn('[halt→ret] OSHalt at caller lr=0x', ($0>>>0).toString(16), ' — returning 0'); },  
- 4509: ($0, $1, $2) => { console.log('[ec98-ret] r3=', $0, ' r0=', $1, ' r31=', $2); },  
- 4573: ($0) => { console.log('[ec98-ld] guest-loaded byte=', $0); },  
- 4626: ($0) => { console.log('[ec98-cz] r0(before rlwinm)=', $0); },  
- 4679: ($0) => { console.error('[fc_step] dispatch failed at pc=0x', ($0>>>0).toString(16)); },  
- 4759: ($0, $1, $2, $3) => { console.error('[fc_step] exception storm:', 'pc=0x', ($0>>>0).toString(16), 'exc=0x', ($1>>>0).toString(16), 'srr0=0x', ($2>>>0).toString(16), 'dar=0x', ($3>>>0).toString(16)); },  
- 4940: ($0, $1, $2, $3, $4) => { console.error('[fc_step] guest halted:', 'pc=0x', ($0>>>0).toString(16), 'exception=0x', ($1>>>0).toString(16), 'prog_exc=0x', ($2>>>0).toString(16), 'dar=0x', ($3>>>0).toString(16), 'srr0=0x', ($4>>>0).toString(16)); },  
- 5162: ($0) => { console.warn('[fc_step] spin suspected at pc=0x', ($0>>>0).toString(16), '— likely HLE-blocked; breaking slice'); },  
- 5282: ($0) => { console.log('[spr] read  spr=', $0); },  
- 5323: ($0, $1) => { console.log('[spr] write spr=', $0, 'val=0x', ($1>>>0).toString(16)); },  
- 5397: ($0, $1) => { console.log('[fallback] mfspr r', $0, ',', $1, ' → 0'); },  
- 5459: ($0, $1, $2) => { console.log('[fallback] mtspr', $0, ', r', $1, '=0x', ($2>>>0).toString(16)); },  
- 5541: ($0, $1) => { console.error('[fallback] unhandled insn raw=0x', ($0>>>0).toString(16), 'at 0x', ($1>>>0).toString(16)); },  
- 5651: ($0, $1, $2, $3) => { console.warn('[null-read] ea=0x', ($0>>>0).toString(16), ' sz=', $1, ' pc=0x', ($2>>>0).toString(16), ' lr=0x', ($3>>>0).toString(16)); },  
- 5791: ($0, $1) => { console.log('[mmio] R 0x', ($0>>>0).toString(16), ' sz=', $1); },  
- 5858: ($0) => { console.log('[ipc] PPCMSG <- 0x', ($0>>>0).toString(16)); },  
- 5920: ($0, $1, $2) => { console.log('[ipc] PPCCTRL poke: req=0x', ($0>>>0).toString(16), ' cmd=0x', ($1>>>0).toString(16), ' res_ptr=0x', ($2>>>0).toString(16)); },  
- 6062: ($0, $1) => { console.log('[mmio] W 0x', ($0>>>0).toString(16), ' ← 0x', ($1>>>0).toString(16)); },  
- 6151: ($0, $1) => { console.log('[ipc] completed req=0x', ($0>>>0).toString(16), 'cmd=', $1); },  
- 6229: ($0, $1) => { console.log('[GX] cmd=0x', ($0>>>0).toString(16), ' data=0x', ($1>>>0).toString(16)); },  
- 6319: ($0, $1) => { console.log('[GX] UNKNOWN cmd=0x', ($0>>>0).toString(16), ' data=0x', ($1>>>0).toString(16)); }
+ 4035: ($0) => { console.log('[wake-main] skipping park on alarm queue (', $0, ' times)'); },  
+ 4113: ($0, $1, $2) => { console.log('[qrecv] queue=0x', ($0>>>0).toString(16), ' w0=0x', ($1>>>0).toString(16), ' w1=0x', ($2>>>0).toString(16)); },  
+ 4239: ($0, $1, $2, $3) => { console.log('[thread-resume] tcb=0x', ($0>>>0).toString(16), ' now at 0x', ($1>>>0).toString(16), ' | msgq[0x8001D9E0]=0x', ($2>>>0).toString(16), ' 0x', ($3>>>0).toString(16)); },  
+ 4421: () => { console.warn('[halt] assert storm (>24) — breaking slice'); },  
+ 4487: ($0) => { console.warn('[halt→ret] OSHalt at caller lr=0x', ($0>>>0).toString(16), ' — returning 0'); },  
+ 4587: ($0, $1, $2) => { console.log('[ec98-ret] r3=', $0, ' r0=', $1, ' r31=', $2); },  
+ 4651: ($0) => { console.log('[ec98-ld] guest-loaded byte=', $0); },  
+ 4704: ($0) => { console.log('[ec98-cz] r0(before rlwinm)=', $0); },  
+ 4757: ($0) => { console.error('[fc_step] dispatch failed at pc=0x', ($0>>>0).toString(16)); },  
+ 4837: ($0, $1, $2, $3) => { console.error('[fc_step] exception storm:', 'pc=0x', ($0>>>0).toString(16), 'exc=0x', ($1>>>0).toString(16), 'srr0=0x', ($2>>>0).toString(16), 'dar=0x', ($3>>>0).toString(16)); },  
+ 5018: ($0, $1, $2, $3, $4) => { console.error('[fc_step] guest halted:', 'pc=0x', ($0>>>0).toString(16), 'exception=0x', ($1>>>0).toString(16), 'prog_exc=0x', ($2>>>0).toString(16), 'dar=0x', ($3>>>0).toString(16), 'srr0=0x', ($4>>>0).toString(16)); },  
+ 5240: ($0) => { console.warn('[fc_step] spin suspected at pc=0x', ($0>>>0).toString(16), '— likely HLE-blocked; breaking slice'); },  
+ 5360: ($0) => { console.log('[spr] read  spr=', $0); },  
+ 5401: ($0, $1) => { console.log('[spr] write spr=', $0, 'val=0x', ($1>>>0).toString(16)); },  
+ 5475: ($0, $1) => { console.log('[fallback] mfspr r', $0, ',', $1, ' → 0'); },  
+ 5537: ($0, $1, $2) => { console.log('[fallback] mtspr', $0, ', r', $1, '=0x', ($2>>>0).toString(16)); },  
+ 5619: ($0, $1) => { console.error('[fallback] unhandled insn raw=0x', ($0>>>0).toString(16), 'at 0x', ($1>>>0).toString(16)); },  
+ 5729: ($0, $1, $2, $3) => { console.warn('[null-read] ea=0x', ($0>>>0).toString(16), ' sz=', $1, ' pc=0x', ($2>>>0).toString(16), ' lr=0x', ($3>>>0).toString(16)); },  
+ 5869: ($0, $1) => { console.log('[mmio] R 0x', ($0>>>0).toString(16), ' sz=', $1); },  
+ 5936: ($0) => { console.log('[ipc] PPCMSG <- 0x', ($0>>>0).toString(16)); },  
+ 5998: ($0, $1, $2) => { console.log('[ipc] PPCCTRL poke: req=0x', ($0>>>0).toString(16), ' cmd=0x', ($1>>>0).toString(16), ' res_ptr=0x', ($2>>>0).toString(16)); },  
+ 6140: ($0, $1) => { console.log('[mmio] W 0x', ($0>>>0).toString(16), ' ← 0x', ($1>>>0).toString(16)); },  
+ 6229: ($0, $1) => { console.log('[ipc] completed req=0x', ($0>>>0).toString(16), 'cmd=', $1); }
 };
 
 // Imports from the Wasm binary.
 var _load_guest_image,
   _malloc,
+  _fc_gxcap_start,
+  _fc_gxcap_count,
+  _fc_gxcap_frames_seen,
+  _fc_gxcap_byte_at,
   _fc_watch_count,
   _fc_watch_pc_at,
   _fc_watch_off_at,
@@ -1070,6 +1073,10 @@ var _load_guest_image,
 function assignWasmExports(wasmExports) {
   _load_guest_image = Module['_load_guest_image'] = wasmExports['load_guest_image'];
   _malloc = Module['_malloc'] = wasmExports['malloc'];
+  _fc_gxcap_start = Module['_fc_gxcap_start'] = wasmExports['fc_gxcap_start'];
+  _fc_gxcap_count = Module['_fc_gxcap_count'] = wasmExports['fc_gxcap_count'];
+  _fc_gxcap_frames_seen = Module['_fc_gxcap_frames_seen'] = wasmExports['fc_gxcap_frames_seen'];
+  _fc_gxcap_byte_at = Module['_fc_gxcap_byte_at'] = wasmExports['fc_gxcap_byte_at'];
   _fc_watch_count = Module['_fc_watch_count'] = wasmExports['fc_watch_count'];
   _fc_watch_pc_at = Module['_fc_watch_pc_at'] = wasmExports['fc_watch_pc_at'];
   _fc_watch_off_at = Module['_fc_watch_off_at'] = wasmExports['fc_watch_off_at'];
